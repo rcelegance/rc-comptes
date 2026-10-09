@@ -548,6 +548,15 @@ function vReglages(){
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 if(!CFG.mode||!CFG.pin)vSetup();else go(isDir()?'bilan':'vendre');
+/* Chargement des prix d'achat par lien (téléphone du Directeur seulement) */
+function hashImport(){if(location.hash.startsWith('#pa=')){
+  const raw=location.hash.slice(4);history.replaceState(null,'',location.pathname);
+  if(isDir()){setTimeout(()=>askPin(()=>{try{const pa=JSON.parse(decodeURIComponent(raw));let n=0;
+    Object.entries(pa).forEach(([k,v])=>{if(num(v)>0){DIR.pa[k]=num(v);n++}});saveDir();toast(n+" prix d'achat chargés ✓");go('achats')}
+    catch(e){toast('Lien illisible',1)}}),500)}
+  else toast("Ce lien est réservé au téléphone du Directeur",1);
+}}
+hashImport();window.addEventListener('hashchange',hashImport);
 </script>
 </body>
 </html>
