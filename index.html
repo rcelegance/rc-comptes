@@ -659,12 +659,17 @@ function vReglages(){
   <h2>Sauvegarde</h2>
   <button class="btn ghost" id="exp">Envoyer / sauvegarder toutes les données</button>
   <button class="btn ghost" id="rest">Restaurer une sauvegarde (code Directeur)</button>`}
+  ${isDir()?`<h2>Effacer des données d'essai</h2><div class="note">Les prix et les prix d'achat sont gardés.</div><input id="delD" type="date" value="${today()}" style="margin-top:8px"><button class="btn ghost" id="delDay">Effacer ce jour</button><button class="btn ghost" id="delAll" style="border-color:var(--bad);color:var(--bad)">Effacer toutes les ventes et dépenses</button>`:''}
   ${isDir()?'<h2>Nouveau téléphone de boutique</h2><div class="note">Si le téléphone de la boutique est perdu ou changé : installez l\'application dessus en mode Boutique, puis envoyez-lui ce lien.</div><button class="btn ghost" id="rest2">Envoyer toutes les données à la boutique</button>':''}
   <h2>Code du Directeur</h2><button class="btn ghost" id="pin">Changer le code</button>
   <p class="note" style="margin-top:24px">Royaum' des Comptes · fonctionne sans connexion. Les données restent dans ce téléphone : envoyez-les chaque soir au Directeur, cela sert aussi de sauvegarde.</p>`;
   $('seuilok').onclick=()=>askPin(()=>{CFG.seuil=Math.max(0,num($('seuil').value));saveCfg();toast('Seuil enregistré')});
   $('pin').onclick=()=>askPin(()=>{const a=prompt('Nouveau code (4 chiffres ou plus) :');if(!a||a.trim().length<4)return toast('Code non changé',1);if(prompt('Répéter le nouveau code :')!==a)return toast('Codes différents',1);CFG.pin=hash(a.trim());saveCfg();toast('Code changé')});
   if(isDir())$('rest2').onclick=()=>askPin(restoreLink);
+  if(isDir()){
+    $('delDay').onclick=()=>askPin(()=>{const d=$('delD').value;if(!d)return;if(!confirm('Effacer toutes les ventes, dépenses et clôtures du '+longDate(d)+' sur CE téléphone ?'))return;localStorage.removeItem('rdc:jour:'+d);delete DIR.pub[d];saveDir();toast('Jour effacé ✓')});
+    $('delAll').onclick=()=>askPin(()=>{if(!confirm('Effacer TOUTES les ventes, dépenses et clôtures sur ce téléphone ? Les prix et prix d\'achat restent.'))return;S.keys('jour:').forEach(k=>localStorage.removeItem('rdc:'+k));DIR.pub={};DIR.recu=null;saveDir();toast('Données effacées ✓');go('bilan')});
+  }
   if(isDir())$('dirok').onclick=()=>askPin(()=>{CFG.taux=num($('taux').value)||637;CFG.fixes=num($('fixes').value);CFG.objectif=num($('obj').value)||1;saveCfg();toast('Enregistré')});
   else{
     $('bok').onclick=()=>askPin(()=>{CFG.envoiClient=num($('ec').value);CFG.envoiCout=num($('eo').value);const v=$('vds').value.split(',').map(s=>s.trim()).filter(Boolean);if(v.length)CFG.vendeuses=v;CFG.alerte=($('alt').value||'').replace(/\D/g,'');saveCfg();toast('Réglages enregistrés')});
