@@ -381,7 +381,7 @@ const LAB={especes:'Espèces',om:'OM',mixte:'Espèces + OM',boutique:'Boutique',
 function vBilan(){
   const r=calc(BD),closed=BD===today()&&new Date().getHours()>=21;
   $('app').innerHTML=head(isDir()?(DIR.recu?'Données reçues le '+DIR.recu:'Aucune donnée reçue de la boutique'):'')+`
-  ${isDir()?'<button class="btn gold" id="imp" style="margin-top:0">Recevoir les données de la boutique</button>':''}
+  ${isDir()?'<button class="btn gold" id="imp" style="margin-top:0">Recevoir un fichier de la boutique</button><p class="note" style="margin-top:6px">Le plus simple : touchez le lien envoyé chaque soir par la boutique sur WhatsApp.</p>':''}
   <input id="bd" type="date" value="${BD}" style="margin-top:10px">
   ${!isDir()&&BD===today()&&!r.clo&&lateNow()?'<div class="alert o">C\'est l\'heure : comptez la caisse et faites la clôture.</div>':closed&&r.clo?'<div class="alert k">Journée clôturée à '+r.clo.heure+'.</div>':''}
   <div class="tot"><div>Ventes de chaussures</div><div class="big">${fmt(r.ca)}</div><div class="note">${r.nb} article${r.nb>1?'s':''}${r.frais?' · + '+fmt(r.frais)+' de frais de livraison/envoi encaissés':''}</div></div>
@@ -423,7 +423,7 @@ function vBilan(){
   if($('clo'))$('clo').onclick=()=>sheetCloture(BD);
   if(isDir()){$('imp').onclick=importFile;$('pubok').onclick=()=>{DIR.pub[BD]=num($('pub').value);saveDir();toast('Pub enregistrée');vBilan()};$('cpd').onclick=()=>copy(txtDir(r,BD))}
   else{
-    $('send').onclick=exportFile;
+    $('send').onclick=sendLink;
     $('vl').onclick=e=>{const b=e.target.closest('.x');if(!b)return;const o=getDay(BD),v=o.ventes.find(x=>x.id===b.dataset.id);
       if(!v)return;guard(v,o,()=>{if(!confirm(`Supprimer la vente « ${v.modele} » à ${fmt(v.total)} ? Le stock sera remis.`))return;
       logSupp(o,'vente',v);o.ventes=o.ventes.filter(x=>x.id!==v.id);o.depenses=o.depenses.filter(x=>x.lien!==v.id);putDay(BD,o);
@@ -492,7 +492,7 @@ async function exportFile(){
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"Royaum' des Comptes",text:'Données de la boutique'});return}}catch(e){if(e.name==='AbortError')return}
   const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();a.remove();toast('Fichier enregistré dans Téléchargements');
 }
-function pickFile(cb){const i=document.createElement('input');i.type='file';i.accept='.json,application/json,*/*';i.onchange=()=>{const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{cb(JSON.parse(r.result))}catch(e){toast('Fichier illisible',1)}};r.readAsText(f)};i.click()}
+function pickFile(cb){const i=document.createElement('input');i.type='file';i.onchange=()=>{const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{cb(JSON.parse(r.result))}catch(e){toast('Fichier illisible',1)}};r.readAsText(f)};i.click()}
 function importFile(){pickFile(b=>{
   if(b.app!=='rdc'||!b.jours)return toast("Ce n'est pas un fichier de Royaum' des Comptes",1);
   if(b.pa)return toast("Ce fichier contient des prix d'achat : importez-le dans « Achats »",1);
@@ -501,6 +501,32 @@ function importFile(){pickFile(b=>{
   CAT=b.cat;saveCat();if(b.cfg){Object.assign(CFG,b.cfg);saveCfg()}
   DIR.recu=new Date(b.cree).toLocaleString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});saveDir();
   BD=today();toast('Données de la boutique reçues ✓');go('bilan')})}
+
+/* ---- Envoi par lien (WhatsApp) ---- */
+function b64u(buf){const b=new Uint8Array(buf);let s='';for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode.apply(null,b.subarray(i,i+8192));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+function unb64u(t){t=t.replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';const s=atob(t),b=new Uint8Array(s.length);for(let i=0;i<s.length;i++)b[i]=s.charCodeAt(i);return b}
+async function pack(o){const st=new Blob([JSON.stringify(o)]).stream().pipeThrough(new CompressionStream('deflate-raw'));return b64u(await new Response(st).arrayBuffer())}
+async function unpack(t){const st=new Blob([unb64u(t)]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return JSON.parse(await new Response(st).text())}
+async function sendLink(){
+  try{
+    const lim=new Date();lim.setDate(lim.getDate()-13);const L=lim.toLocaleDateString('fr-CA');
+    const b=bundle();Object.keys(b.jours).forEach(d=>{if(d<L)delete b.jours[d]});b.part=1;
+    const url=location.origin+location.pathname.replace(/[^/]*$/,'')+'index.html#d='+await pack(b);
+    const now=new Date();
+    const txt=`Données Royaum' des Comptes du ${now.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} à ${now.toTimeString().slice(0,5)}.\nDirecteur : touchez le lien pour mettre à jour votre application.\n${url}`;
+    if(navigator.share){try{await navigator.share({text:txt});return}catch(e){if(e.name==='AbortError')return}}
+    copy(txt);
+  }catch(e){toast('Envoi impossible : utilisez la sauvegarde dans ⚙',1)}
+}
+async function linkImport(raw){
+  try{const b=await unpack(raw);
+    if(b.app!=='rdc'||!b.jours)throw 0;
+    Object.entries(b.jours).forEach(([d,o])=>S.set('jour:'+d,o));
+    if(b.cat){CAT=b.cat;saveCat()}if(b.cfg){Object.assign(CFG,b.cfg);saveCfg()}
+    DIR.recu=new Date(b.cree).toLocaleString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});saveDir();
+    BD=today();go('bilan');toast('Données de la boutique reçues ✓');
+  }catch(e){toast('Lien illisible',1)}
+}
 
 /* ================= ACHATS (Directeur) ================= */
 function vAchats(){
@@ -549,7 +575,10 @@ if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 if(!CFG.mode||!CFG.pin)vSetup();else go(isDir()?'bilan':'vendre');
 /* Chargement des prix d'achat par lien (téléphone du Directeur seulement) */
-function hashImport(){if(location.hash.startsWith('#pa=')){
+function hashImport(){
+if(location.hash.startsWith('#d=')){const raw=location.hash.slice(3);history.replaceState(null,'',location.pathname);
+  if(isDir())linkImport(raw);else toast("Ce lien s'ouvre sur le téléphone du Directeur",1);return}
+if(location.hash.startsWith('#pa=')){
   const raw=location.hash.slice(4);history.replaceState(null,'',location.pathname);
   if(isDir()){setTimeout(()=>askPin(()=>{try{const pa=JSON.parse(decodeURIComponent(raw));let n=0;
     Object.entries(pa).forEach(([k,v])=>{if(num(v)>0){DIR.pa[k]=num(v);n++}});saveDir();toast(n+" prix d'achat chargés ✓");go('achats')}
