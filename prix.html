@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="author" content="Directeur Général du Royaum' des Chaussures">
+<title>Prix de vente — Royaum' des Chaussures</title>
+<style>
+:root{--ink:#0F2340;--gold:#B8892B;--goldl:#F7F0E1;--line:#E2DACB;--muted:#55627A;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:#fff;color:var(--ink);font-family:system-ui,-apple-system,Roboto,sans-serif;font-size:18px;line-height:1.4}
+main{max-width:560px;margin:0 auto;padding:16px 16px 120px}
+h1{font-family:Georgia,serif;font-size:1.4rem;margin:0}
+header{border-bottom:3px solid var(--gold);padding-bottom:10px;margin-bottom:12px}
+p{color:var(--muted);font-size:.95rem;margin:6px 0}
+.prog{font-weight:800;margin:10px 0}
+.row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.row b{flex:1}
+.row input{flex:0 0 120px;font:inherit;font-size:1.1rem;padding:10px;border:2px solid var(--gold);border-radius:10px;text-align:right}
+.row input.ok{border-color:var(--line)}
+input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+h2{font-size:1.05rem;margin:22px 0 6px}
+.add{display:flex;gap:8px}.add input{flex:1;font:inherit;padding:10px;border:2px solid var(--line);border-radius:10px;min-width:0}.add input+input{flex:0 0 110px}
+.add button{font:inherit;font-weight:800;border:0;border-radius:10px;background:var(--ink);color:#fff;padding:0 16px}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid var(--line)}
+.bar button{display:block;width:100%;max-width:528px;margin:0 auto;font:inherit;font-weight:800;font-size:1.1rem;padding:16px;border:0;border-radius:14px;background:var(--gold);color:#fff}
+</style></head><body><main>
+<header><h1>Prix de vente standards</h1><p>Royaum' des Chaussures</p></header>
+<p>Pour chaque modèle, écrivez le prix de vente normal. Laissez vide si vous ne savez pas. Vos réponses restent sur ce téléphone même si vous fermez la page.</p>
+<div class="prog" id="prog"></div>
+<div id="list"></div>
+<h2>Modèles qui manquent dans la liste</h2>
+<div class="add"><input id="nn" placeholder="Nom du modèle"><input id="np" type="number" inputmode="numeric" placeholder="Prix"><button id="na">+</button></div>
+<div id="extra"></div>
+</main>
+<div class="bar"><button id="send">Envoyer au Directeur par WhatsApp</button></div>
+<script>
+const BASE=[["Adidas",0],["Ana Galia",0],["Babauche",14000],["Basket enfant",4500],["Basket Prama",6000],["Basket Promo",5000],["Berlutie de Paris",0],["Bouk Shoes",20000],["Bromey",17500],["Ceinture cuir",12000],["Ceinture simple",6000],["Celio",20000],["Celio montante",20000],["Chamo",0],["Chausse-pied",1500],["Chaussette",500],["Cirage",750],["Gellegien",15000],["Gemine Quality",0],["Grosse Mocassin",20000],["Grosse Pointure",13000],["H Remaw",20000],["IM Shoes montante",20000],["IM Shoes soulier",20000],["Jaguar",15000],["JMS",15000],["John Foster",20000],["John Foster montant",20000],["Kosta",20000],["Lacoste",0],["Liba Fashion",8000],["Mocassin Sulti",0],["Mocassin Turquie",20000],["New Fashion",0],["Nike",17500],["Novalion",18000],["Nu pied cuir",20000],["Nu pied Hazana",15000],["Nu pied lion",15000],["Nu pied Timberland",0],["Nu pied Zaza",7000],["Nulimsen",17500],["OGGI",15000],["Original",10000],["Pierre Cardin",15000],["Présidentielle bout pointu",20000],["Présidentielle bout rond",20000],["RC Elegance",20000],["RC Moccasin",15000],["RC Soulier boucle",20000],["RC Soulier jolie gomme",17500],["Retos",20000],["Ripano",15000],["Sebago",0],["SLmu+3",0],["Timberland soulier",0],["TOD",15000],["Vrai cuir",12000],["Weston",15000]];
+const KEY='rc-prix-v2';
+let D={};try{D=JSON.parse(localStorage.getItem(KEY))||{}}catch(e){}
+if(!D.p){D={p:{},x:[]};BASE.forEach(([n,p])=>{if(p)D.p[n]=p})}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=id=>document.getElementById(id);
+function prog(){const f=BASE.filter(([n])=>D.p[n]).length;$('prog').textContent=f+' / '+BASE.length+' prix remplis'}
+$('list').innerHTML=BASE.map(([n])=>`<div class="row"><b>${esc(n)}</b><input type="number" inputmode="numeric" data-n="${esc(n)}" value="${D.p[n]||''}" class="${D.p[n]?'ok':''}" placeholder="Prix"></div>`).join('');
+$('list').oninput=e=>{const i=e.target,v=parseFloat(i.value)||0;if(v)D.p[i.dataset.n]=v;else delete D.p[i.dataset.n];i.className=v?'ok':'';save();prog()};
+function extra(){$('extra').innerHTML=D.x.map((x,k)=>`<div class="row"><b>${esc(x.n)}</b><span>${x.p||'?'} F</span><button data-k="${k}" style="border:0;background:none;font-size:1.3rem">×</button></div>`).join('')}
+$('extra').onclick=e=>{const b=e.target.closest('button');if(b){D.x.splice(+b.dataset.k,1);save();extra()}};
+$('na').onclick=()=>{const n=$('nn').value.trim();if(!n)return;D.x.push({n,p:parseFloat($('np').value)||0});$('nn').value='';$('np').value='';save();extra()};
+$('send').onclick=()=>{
+  let t="PRIX DE VENTE STANDARDS - Royaum' des Chaussures\n\n"+BASE.map(([n])=>`${n} : ${D.p[n]?D.p[n]:'?'}`).join('\n');
+  if(D.x.length)t+='\n\nNOUVEAUX MODELES\n'+D.x.map(x=>`${x.n} : ${x.p||'?'}`).join('\n');
+  location.href='https://wa.me/?text='+encodeURIComponent(t);
+};
+prog();extra();
+</script></body></html>

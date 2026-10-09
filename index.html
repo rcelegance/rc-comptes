@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F2340">
+<meta name="author" content="Directeur Général du Royaum' des Chaussures">
+<title>Royaum' des Comptes</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#fff;--ink:#0F2340;--gold:#B8892B;--goldl:#F7F0E1;--line:#E2DACB;--muted:#55627A;--ok:#1E7A46;--okl:#E6F4EC;--warn:#C46A00;--warnl:#FFF1DF;--bad:#B3261E;--badl:#FDE8E6;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:18px;line-height:1.4;-webkit-tap-highlight-color:transparent}
+main{max-width:560px;margin:0 auto;padding:14px 16px 150px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;border-bottom:3px solid var(--gold);padding-bottom:10px;margin-bottom:12px}
+h1{font-family:Georgia,"Times New Roman",serif;font-size:1.4rem;margin:0;line-height:1.1}
+.sub{color:var(--muted);font-size:.88rem}
+.tag{font-size:.75rem;font-weight:800;padding:4px 9px;border-radius:99px;border:1.5px solid var(--gold);color:var(--gold);white-space:nowrap}
+h2{font-size:1.05rem;margin:20px 0 8px}
+h2 small{font-weight:400;color:var(--muted)}
+input,select{width:100%;font:inherit;font-size:1.1rem;padding:12px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+button{font:inherit;color:inherit;cursor:pointer}
+.list{max-height:260px;overflow-y:auto;border:2px solid var(--line);border-radius:12px;margin-top:8px}
+.list button{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;padding:12px 14px;border:0;border-bottom:1px solid var(--line);background:#fff}
+.list button:last-child{border-bottom:0}
+.price{color:var(--muted);font-weight:600;white-space:nowrap}
+.st{display:inline-block;min-width:34px;text-align:center;font-size:.8rem;font-weight:800;padding:3px 7px;border-radius:99px;margin-left:6px}
+.st.g{background:var(--okl);color:var(--ok)}.st.o{background:var(--warnl);color:var(--warn)}.st.r{background:var(--badl);color:var(--bad)}
+.chosen{display:flex;justify-content:space-between;align-items:center;padding:14px;border:2px solid var(--gold);border-radius:12px;background:var(--goldl);font-weight:800;font-size:1.15rem}
+.link{border:0;background:none;color:var(--gold);font-weight:700;padding:4px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.seg.c4{grid-template-columns:repeat(4,1fr)}
+.seg button{font-weight:700;padding:13px 4px;border:2px solid var(--line);border-radius:12px;background:#fff}
+.seg button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.seg button:disabled{opacity:.35}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.chips button{font-size:.95rem;font-weight:700;padding:9px 13px;border:1.5px solid var(--line);border-radius:99px;background:#fff}
+.chips button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.rem{margin-top:6px;font-weight:700;color:var(--bad);min-height:1.3em}
+.qty{display:flex;align-items:center;gap:14px}
+.qty button{width:52px;height:52px;font-size:1.6rem;border:2px solid var(--line);border-radius:12px;background:#fff}
+.qty b{font-size:1.5rem;min-width:30px;text-align:center}
+.bar{position:fixed;left:0;right:0;bottom:64px;padding:10px 16px;background:#fff;border-top:1px solid var(--line);z-index:4}
+.bar button{display:block;width:100%;max-width:528px;margin:0 auto;font-weight:800;font-size:1.15rem;padding:16px;border:0;border-radius:14px;background:var(--gold);color:#fff}
+.bar button:disabled{opacity:.4}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--ink);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav button{flex:1;font-size:.9rem;font-weight:700;padding:20px 2px;border:0;background:none;color:#fff;opacity:.6}
+nav button.on{opacity:1;box-shadow:inset 0 4px 0 var(--gold)}
+.tot{padding:16px;border:2px solid var(--gold);border-radius:14px;background:var(--goldl);margin-top:10px}
+.tot .big{font-family:Georgia,serif;font-size:2.3rem;font-weight:700;line-height:1.1}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.cell{border:2px solid var(--line);border-radius:12px;padding:10px 12px}
+.cell div:first-child{font-size:.85rem;color:var(--muted)}
+.cell div:last-child{font-weight:800;font-size:1.12rem}
+.cell.k{border-color:var(--ink)}.cell.g{border-color:var(--ok);color:var(--ok)}.cell.r{border-color:var(--bad);color:var(--bad)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.row .l{flex:1;min-width:0}.row .l b{display:block}.row .l span{font-size:.86rem;color:var(--muted)}
+.row .p{font-weight:800;white-space:nowrap;text-align:right}.row .p s{display:block;font-weight:400;font-size:.8rem;color:var(--muted)}
+.x{border:0;background:none;color:var(--muted);font-size:1.4rem;padding:4px 8px}
+.btn{display:block;width:100%;font-weight:800;padding:14px;border:0;border-radius:12px;background:var(--ink);color:#fff;margin-top:12px}
+.btn.gold{background:var(--gold)}.btn.ghost{background:#fff;border:2px solid var(--ink);color:var(--ink)}
+.inl{display:flex;gap:8px;margin-top:8px}.inl>*{min-width:0}
+.inl button{flex:0 0 auto;font-weight:800;padding:0 16px;border:0;border-radius:12px;background:var(--ink);color:#fff}
+.note{color:var(--muted);font-size:.9rem;margin-top:6px}
+.alert{margin-top:10px;padding:10px 12px;border-radius:12px;font-weight:700}
+.alert.o{background:var(--warnl);color:var(--warn)}.alert.r{background:var(--badl);color:var(--bad)}.alert.k{background:var(--ink);color:#fff;text-align:center}
+.stk{border:2px solid var(--line);border-radius:12px;margin-top:8px;overflow:hidden}
+.stk>button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:12px 14px;border:0;background:#fff;text-align:left;font-weight:700}
+.stk.o{border-color:var(--warn)}.stk.r{border-color:var(--bad)}
+.sizes{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;padding:0 12px 12px}
+.sz{border:1.5px solid var(--line);border-radius:10px;text-align:center;padding:6px 2px}
+.sz b{display:block;font-size:1.05rem}.sz span{font-size:.8rem;color:var(--muted)}
+.sz.o{border-color:var(--warn);color:var(--warn)}.sz.r{border-color:var(--bad);color:var(--bad);opacity:.7}
+.sz input{padding:6px;font-size:1rem;text-align:center}
+.toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ok);color:#fff;font-weight:800;padding:12px 20px;border-radius:99px;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.on{opacity:1}.toast.err{background:var(--bad)}
+.modal{position:fixed;inset:0;background:rgba(15,35,64,.55);display:flex;align-items:flex-end;justify-content:center;z-index:8}
+.sheet{background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom,0px));max-height:88vh;overflow-y:auto}
+.empty{color:var(--muted);padding:10px 0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="toast" id="toast" role="status"></div>
+<main id="app"></main>
+<div class="bar" id="bar" hidden><button id="saveBtn" disabled>Enregistrer la vente</button></div>
+<nav id="nav"></nav>
+<div id="modal"></div>
+
+<script>
+/* ================= Données de base ================= */
+const DEFAULT_CAT=[["Adidas",0],["Ana Galia",0],["Babauche",14000],["Basket enfant",4500],["Basket Prama",6000],["Basket Promo",5000],["Berlutie de Paris",0],["Bouk Shoes",20000],["Bromey",17500],["Ceinture cuir",12000],["Ceinture simple",6000],["Celio",20000],["Celio montante",20000],["Chamo",0],["Chausse-pied",1500],["Chaussette",500],["Cirage",750],["Gellegien",15000],["Gemine Quality",0],["Grosse Mocassin",20000],["Grosse Pointure",13000],["H Remaw",20000],["IM Shoes montante",20000],["IM Shoes soulier",20000],["Jaguar",15000],["JMS",15000],["John Foster",20000],["John Foster montant",20000],["Kosta",20000],["Lacoste",0],["Liba Fashion",8000],["Mocassin Sulti",0],["Mocassin Turquie",20000],["New Fashion",0],["Nike",17500],["Novalion",18000],["Nu pied cuir",20000],["Nu pied Hazana",15000],["Nu pied lion",15000],["Nu pied Timberland",0],["Nu pied Zaza",7000],["Nulimsen",17500],["OGGI",15000],["Original",10000],["Pierre Cardin",15000],["Présidentielle bout pointu",20000],["Présidentielle bout rond",20000],["RC Elegance",20000],["RC Moccasin",15000],["RC Soulier boucle",20000],["RC Soulier jolie gomme",17500],["Retos",20000],["Ripano",15000],["Sebago",0],["SLmu+3",0],["Timberland soulier",0],["TOD",15000],["Vrai cuir",12000],["Weston",15000]].map(([n,p])=>({n,p,stock:null,tailles:null}));
+const DEFAULT_CFG={mode:null,pin:null,seuil:3,vendeuses:["Christmie","Djamila","Flora","Samira","Sylvie"],envoiClient:1500,envoiCout:2000,
+  categories:["Ration (nourriture)","Unités","Essence","Envoi province","Autre"],taux:637,fixes:9133,objectif:33334};
+const SIZES=["36","37","38","39","40","41","42","43","44","45","46","47"];
+
+/* ================= Outils ================= */
+const $=id=>document.getElementById(id);
+const S={get(k,d){try{const v=localStorage.getItem('rdc:'+k);return v?JSON.parse(v):d}catch(e){return d}},
+         set(k,v){try{localStorage.setItem('rdc:'+k,JSON.stringify(v));return true}catch(e){toast('Mémoire du téléphone pleine',1);return false}},
+         keys(p){const r=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith('rdc:'+p))r.push(k.slice(4))}return r}};
+const fmt=n=>Math.round(n||0).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g,' ')+' F';
+const today=()=>new Date().toLocaleDateString('fr-CA');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const num=v=>{const n=parseFloat(String(v).replace(/\s/g,'').replace(',','.'));return isFinite(n)?n:0};
+const hash=s=>{let h=5381;for(const c of 'rdc#'+s)h=((h<<5)+h+c.charCodeAt(0))|0;return String(h)};
+const longDate=d=>new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+function toast(t,err){const e=$('toast');e.textContent=t;e.className='toast on'+(err?' err':'');clearTimeout(e._t);e._t=setTimeout(()=>e.className='toast',2200)}
+
+let CFG=Object.assign({},DEFAULT_CFG,S.get('cfg',{}));
+let CAT=S.get('cat',null)||DEFAULT_CAT.map(x=>({...x}));
+const saveCfg=()=>S.set('cfg',CFG), saveCat=()=>S.set('cat',CAT);
+const getDay=d=>S.get('jour:'+d,{ventes:[],depenses:[]}), putDay=(d,o)=>S.set('jour:'+d,o);
+let DIR=S.get('dir',{pa:{},pub:{},recu:null});const saveDir=()=>S.set('dir',DIR);
+const isDir=()=>CFG.mode==='directeur';
+
+/* ---- PIN Directeur (déverrouillé 10 minutes) ---- */
+let unlockedUntil=0;
+function askPin(then){
+  if(Date.now()<unlockedUntil)return then();
+  const p=prompt('Code du Directeur :');if(p===null)return;
+  if(hash(p)===CFG.pin){unlockedUntil=Date.now()+600000;then()}else toast('Code incorrect',1);
+}
+
+/* ---- stock ---- */
+const total=m=>m.tailles?Object.values(m.tailles).reduce((a,b)=>a+b,0):m.stock;
+function level(q){if(q===null||q===undefined)return'';if(q<=0)return'r';if(q<=CFG.seuil)return'o';return'g'}
+function badge(m){const q=total(m);if(q===null||q===undefined)return'';const l=level(q);return`<span class="st ${l}">${q<=0?'Épuisé':q}</span>`}
+function moveStock(name,taille,delta){
+  const m=CAT.find(x=>x.n===name);if(!m)return;
+  if(m.tailles&&taille){m.tailles[taille]=(m.tailles[taille]||0)+delta}
+  else if(m.stock!==null&&m.stock!==undefined){m.stock+=delta}
+  saveCat();
+}
+
+/* ================= Navigation ================= */
+let TAB=null;
+const TABS_B=[["vendre","Vendre"],["depenses","Dépenses"],["stock","Stock"],["bilan","Bilan"],["reglages","⚙"]];
+const TABS_D=[["bilan","Bilan"],["stock","Stock"],["achats","Achats"],["reglages","⚙"]];
+function nav(){
+  const T=isDir()?TABS_D:TABS_B;
+  $('nav').innerHTML=T.map(([k,l])=>`<button data-t="${k}" class="${k===TAB?'on':''}">${l}</button>`).join('');
+}
+$('nav').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.t)};
+function go(t){TAB=t;nav();$('bar').hidden=t!=='vendre';window.scrollTo(0,0);({vendre:vVendre,depenses:vDepenses,stock:vStock,bilan:vBilan,achats:vAchats,reglages:vReglages})[t]()}
+function head(sub){return`<header><div><h1>Royaum' des Comptes</h1><div class="sub">${sub||new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</div></div><span class="tag">${isDir()?'Directeur':'Boutique'}</span></header>`}
+
+/* ================= Première ouverture ================= */
+function vSetup(){
+  $('nav').innerHTML='';$('bar').hidden=true;
+  $('app').innerHTML=`<header><div><h1>Royaum' des Comptes</h1><div class="sub">Première ouverture</div></div></header>
+  <h2>Ce téléphone est :</h2>
+  <div class="seg" style="grid-template-columns:1fr 1fr" id="mSeg"><button data-m="boutique">Le téléphone de la boutique</button><button data-m="directeur">Le téléphone du Directeur</button></div>
+  <h2>Code secret du Directeur <small>(4 chiffres ou plus)</small></h2>
+  <input id="p1" type="password" inputmode="numeric" placeholder="Code">
+  <input id="p2" type="password" inputmode="numeric" placeholder="Répéter le code" style="margin-top:8px">
+  <p class="note">Ce code protège les prix, le stock, les réglages et les prix d'achat. Les vendeuses ne doivent pas le connaître.</p>
+  <button class="btn gold" id="go">Commencer</button>`;
+  let m=null;
+  $('mSeg').onclick=e=>{const b=e.target.closest('button');if(!b)return;m=b.dataset.m;[...$('mSeg').children].forEach(x=>x.classList.toggle('on',x===b))};
+  $('go').onclick=()=>{
+    if(!m)return toast('Choisissez le téléphone',1);
+    const a=$('p1').value.trim();if(a.length<4)return toast('Code trop court',1);
+    if(a!==$('p2').value.trim())return toast('Les deux codes sont différents',1);
+    CFG.mode=m;CFG.pin=hash(a);saveCfg();saveCat();go(isDir()?'bilan':'vendre');
+  };
+}
+
+/* ================= VENDRE ================= */
+let F=null;const resetF=()=>{F={m:null,prix:'',qte:1,pay:'especes',om:'',canal:'boutique',taille:null,frais:'',vend:S.get('vendeuse',null)}};resetF();
+function vVendre(){
+  const ld=getDay(today());
+  $('app').innerHTML=head()+(lateNow()&&!(ld.clotures||[]).length?'<div class="alert o">C\'est l\'heure : allez dans Bilan et comptez la caisse.</div>':'')+`
+  <h2>1. Modèle</h2>
+  <div id="pick"><input id="q" type="search" placeholder="Taper : nike, retos…" autocomplete="off"><div class="list" id="ml"></div></div>
+  <div id="chosen"></div>
+  <div id="rest"></div>`;
+  $('q').oninput=renderML;renderML();
+  $('ml').onclick=e=>{const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.new){F.m={n:$('q').value.trim(),p:0,stock:null,tailles:null,libre:1}}else F.m=CAT.find(x=>x.n===b.dataset.n);
+    F.prix=F.m.promo||F.m.p||'';F.taille=null;renderSale()};
+  if(F.m)renderSale();updSave();
+}
+function renderML(){
+  const q=norm($('q').value.trim());
+  const it=CAT.filter(m=>!q||norm(m.n).includes(q)).sort((a,b)=>a.n.localeCompare(b.n,'fr'));
+  let h=it.map(m=>`<button data-n="${esc(m.n)}"><span>${esc(m.n)}${badge(m)}${m.promo?'<span class="st o">PROMO</span>':''}</span><span class="price">${m.promo?`<s style="font-weight:400">${fmt(m.p)}</s> ${fmt(m.promo)}`:m.p?fmt(m.p):'prix ?'}</span></button>`).join('');
+  if(q&&!it.some(m=>norm(m.n)===q))h+=`<button data-new="1"><span>Autre article : « ${esc($('q').value.trim())} »</span><span class="price">+</span></button>`;
+  $('ml').innerHTML=h||'<div class="empty" style="padding:12px">Aucun modèle</div>';
+}
+function renderSale(){
+  const m=F.m;$('pick').hidden=true;
+  $('chosen').innerHTML=`<div class="chosen"><span>${esc(m.n)}${badge(m)}</span><button class="link" id="chg">Changer</button></div>`;
+  $('chg').onclick=()=>{resetF2();vVendre()};
+  const sizes=m.tailles?SIZES.filter(t=>t in m.tailles).concat(Object.keys(m.tailles).filter(t=>!SIZES.includes(t))):null;
+  $('rest').innerHTML=`
+  ${sizes?`<h2>Pointure</h2><div class="chips" id="sz">${sizes.map(t=>`<button data-t="${t}" class="${F.taille===t?'on':''}" ${m.tailles[t]<=0?'disabled style="opacity:.35"':''}>${t} <small>(${m.tailles[t]})</small></button>`).join('')}</div>`:''}
+  <h2>2. Prix vendu <small>${m.promo?'· PROMO '+fmt(m.promo)+' (normal '+fmt(m.p)+')':m.p?'· normal '+fmt(m.p):'· pas de prix normal'}</small></h2>
+  <input id="prix" type="number" inputmode="numeric" value="${F.prix}">
+  ${base(m)?`<div class="chips" id="rm">${[500,1000,1500,2000,2500,3000,3500,4000].map(r=>`<button data-r="${r}">−${fmt(r).replace(' F','')}</button>`).join('')}<button data-r="0">${m.promo?'Prix promo':'Prix normal'}</button></div>`:''}
+  <div class="rem" id="remTxt"></div>
+  <h2>3. Quantité</h2>
+  <div class="qty"><button id="qm">−</button><b id="qv">${F.qte}</b><button id="qp">+</button></div>
+  <h2>4. Paiement</h2>
+  <div class="seg" id="pay">${[['especes','Espèces'],['om','OM'],['mixte','Les deux']].map(([k,l])=>`<button data-v="${k}" class="${F.pay===k?'on':''}">${l}</button>`).join('')}</div>
+  <div id="mix" ${F.pay==='mixte'?'':'hidden'}><input id="om" type="number" inputmode="numeric" placeholder="Part payée par OM" value="${F.om}" style="margin-top:8px"><div class="note" id="mixTxt"></div></div>
+  <h2>5. Type de vente</h2>
+  <div class="seg" id="can">${[['boutique','Boutique'],['livraison','Livraison'],['envoi','Envoi province']].map(([k,l])=>`<button data-v="${k}" class="${F.canal===k?'on':''}">${l}</button>`).join('')}</div>
+  <div id="fraisBox"></div>
+  <h2>6. Vendeuse</h2>
+  <div class="seg" id="ven">${CFG.vendeuses.map(n=>`<button data-v="${esc(n)}" class="${F.vend===n?'on':''}">${esc(n)}</button>`).join('')}</div>`;
+  if(sizes)$('sz').onclick=e=>{const b=e.target.closest('button');if(!b||b.disabled)return;F.taille=b.dataset.t;[...$('sz').children].forEach(x=>x.classList.toggle('on',x===b));updSave()};
+  $('prix').oninput=()=>{F.prix=$('prix').value;upd()};
+  if(base(m))$('rm').onclick=e=>{const b=e.target.closest('button');if(!b)return;F.prix=Math.max(0,base(m)-num(b.dataset.r));$('prix').value=F.prix;upd()};
+  $('qm').onclick=()=>{if(F.qte>1){F.qte--;$('qv').textContent=F.qte;upd()}};
+  $('qp').onclick=()=>{F.qte++;$('qv').textContent=F.qte;upd()};
+  segH('pay',v=>{F.pay=v;$('mix').hidden=v!=='mixte';upd()});
+  segH('can',v=>{F.canal=v;if(v==='envoi'&&F.frais==='')F.frais=CFG.envoiClient;if(v==='boutique')F.frais='';renderFrais();upd()});
+  segH('ven',v=>{F.vend=v;S.set('vendeuse',v);updSave()});
+  $('om').oninput=()=>{F.om=$('om').value;upd()};
+  renderFrais();upd();
+}
+function renderFrais(){
+  const b=$('fraisBox');if(F.canal==='boutique'){b.innerHTML='';return}
+  b.innerHTML=`<h2>${F.canal==='envoi'?"Frais d'envoi payés par le client":"Frais de livraison payés par le client"} <small>(0 si gratuit)</small></h2>
+  <input id="frais" type="number" inputmode="numeric" value="${F.frais}" placeholder="0">
+  ${F.canal==='envoi'?`<p class="note">L'envoi coûte ${fmt(CFG.envoiCout)} à la boutique : cette dépense s'ajoute toute seule au bilan.</p>`:'<div class="chips" id="fq"><button data-f="1000">1 000</button><button data-f="1500">1 500</button><button data-f="2000">2 000</button></div>'}`;
+  $('frais').oninput=()=>{F.frais=$('frais').value;upd()};
+  if($('fq'))$('fq').onclick=e=>{const x=e.target.closest('button');if(!x)return;F.frais=x.dataset.f;$('frais').value=F.frais;upd()};
+}
+function segH(id,cb){$(id).onclick=e=>{const b=e.target.closest('button');if(!b)return;[...$(id).children].forEach(x=>x.classList.toggle('on',x===b));cb(b.dataset.v)}}
+const saleTotal=()=>num(F.prix)*F.qte;
+const base=m=>m.promo||m.p||0;
+function upd(){
+  const m=F.m,p=num(F.prix);
+  if($('remTxt')){const b=m?base(m):0;$('remTxt').textContent=b&&p&&p<b?`Remise vendeuse : ${fmt((b-p)*F.qte)}`:(b&&p>b?`Au-dessus du prix ${m.promo?'promo':'normal'} (+${fmt(p-b)})`:'')}
+  if(F.pay==='mixte'&&$('mixTxt')){const t=saleTotal()+num(F.frais),o=num(F.om);$('mixTxt').textContent=o>=t?'La part OM doit être plus petite que le total.':`Espèces : ${fmt(t-o)} · Total encaissé ${fmt(t)}`}
+  updSave();
+}
+function canSave(){
+  if(!F.m||num(F.prix)<=0||!F.vend)return false;
+  if(F.m.tailles&&!F.taille)return false;
+  if(F.pay==='mixte'){const o=num(F.om);if(o<=0||o>=saleTotal()+num(F.frais))return false}
+  return true;
+}
+function updSave(){const b=$('saveBtn');b.disabled=!canSave();
+  b.textContent=F.m&&num(F.prix)>0?`Enregistrer · ${fmt(saleTotal()+num(F.frais))}`:'Enregistrer la vente';
+  if(F.m&&F.m.tailles&&!F.taille)b.textContent='Choisir la pointure';
+  else if(F.m&&!F.vend)b.textContent='Choisir la vendeuse'}
+function resetF2(){const v=F.vend;resetF();F.vend=v}
+$('saveBtn').onclick=()=>{
+  if(!canSave())return;
+  const m=F.m,p=num(F.prix),t=p*F.qte,fr=F.canal==='boutique'?0:num(F.frais),enc=t+fr;
+  const om=F.pay==='om'?enc:F.pay==='mixte'?num(F.om):0;
+  const d=today(),o=getDay(d),now=new Date(),id=uid();
+  const v={id,ts:Date.now(),heure:now.toTimeString().slice(0,5),modele:m.n,taille:F.taille,prixNormal:m.p||p,prixPromo:m.promo||null,apresCloture:!!(o.clotures&&o.clotures.length),prixVendu:p,qte:F.qte,total:t,frais:fr,om,especes:enc-om,paiement:F.pay,canal:F.canal,vendeuse:F.vend};
+  o.ventes.push(v);
+  if(F.canal==='envoi'&&CFG.envoiCout>0)o.depenses.push({id:uid(),ts:v.ts,heure:v.heure,cat:'Envoi province',motif:'Envoi '+m.n,montant:CFG.envoiCout,lien:id});
+  if(!putDay(d,o))return;
+  if(!m.libre)moveStock(m.n,F.taille,-F.qte);
+  if(navigator.vibrate)navigator.vibrate(60);
+  const after=m.libre?null:total(CAT.find(x=>x.n===m.n));
+  toast(after!==null&&after!==undefined&&after<=CFG.seuil?`Vente enregistrée ✓ — attention, il reste ${Math.max(after,0)} ${m.n}`:'Vente enregistrée ✓',after!==null&&after!==undefined&&after<=0);
+  resetF2();vVendre();
+};
+
+/* ---- verrou : 1 heure après la saisie, ou après la clôture, il faut le code ---- */
+function guard(item,day,then){
+  const fresh=item.ts&&Date.now()-item.ts<3600000, closed=day.clotures&&day.clotures.some(c=>c.ts>item.ts);
+  if(fresh&&!closed)return then();
+  toast(closed?'Journée clôturée : code du Directeur':'Plus d\'une heure : code du Directeur');setTimeout(()=>askPin(then),400);
+}
+function logSupp(o,type,x){(o.supprimees=o.supprimees||[]).push({type,libelle:type==='vente'?x.modele:x.cat,montant:type==='vente'?x.total:x.montant,heure:x.heure,supp:new Date().toTimeString().slice(0,5)})}
+
+/* ================= DÉPENSES ================= */
+function vDepenses(){
+  const d=today(),o=getDay(d);let cat=CFG.categories[0];
+  $('app').innerHTML=head()+`
+  <h2>Nouvelle dépense</h2>
+  <div class="chips" id="dc">${CFG.categories.map((c,i)=>`<button data-c="${esc(c)}" class="${i?'':'on'}">${esc(c)}</button>`).join('')}<button data-add="1">+ Autre type</button></div>
+  <input id="dm" type="number" inputmode="numeric" placeholder="Montant" style="margin-top:10px">
+  <input id="dmo" placeholder="Détail (facultatif)" style="margin-top:8px">
+  <button class="btn gold" id="dadd">Ajouter la dépense</button>
+  <h2>Dépenses d'aujourd'hui · ${fmt(o.depenses.reduce((a,x)=>a+x.montant,0))}</h2>
+  <div id="dl">${depRows(o.depenses)}</div>`;
+  $('dc').onclick=e=>{const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.add){askPin(()=>{const n=(prompt('Nom du nouveau type de dépense :')||'').trim();if(n&&!CFG.categories.includes(n)){CFG.categories.splice(CFG.categories.length-1,0,n);saveCfg();vDepenses()}});return}
+    cat=b.dataset.c;[...$('dc').children].forEach(x=>x.classList.toggle('on',x===b))};
+  $('dadd').onclick=()=>{const mt=num($('dm').value);if(mt<=0){$('dm').focus();return}
+    o.depenses.push({id:uid(),ts:Date.now(),heure:new Date().toTimeString().slice(0,5),cat,motif:$('dmo').value.trim(),montant:mt});putDay(d,o);toast('Dépense ajoutée');vDepenses()};
+  $('dl').onclick=e=>{const b=e.target.closest('.x');if(!b)return;const x=o.depenses.find(y=>y.id===b.dataset.id);
+    if(x.lien)return toast("Cette dépense est liée à une vente : supprimez la vente",1);
+    guard(x,o,()=>{if(confirm(`Supprimer ${x.cat} ${fmt(x.montant)} ?`)){logSupp(o,'depense',x);o.depenses=o.depenses.filter(y=>y.id!==x.id);putDay(d,o);vDepenses()}})};
+}
+function depRows(L,ro){return L.length?L.map(x=>`<div class="row"><div class="l"><b>${esc(x.cat)}</b><span>${x.heure||''}${x.motif?' · '+esc(x.motif):''}</span></div><div class="p">${fmt(x.montant)}</div>${ro?'':`<button class="x" data-id="${x.id}">×</button>`}</div>`).join(''):'<div class="empty">Aucune dépense.</div>'}
+
+/* ================= STOCK ================= */
+let openStk=null;
+function vStock(){
+  const tr=m=>{const q=total(m);return q===null||q===undefined?1:0};
+  const L=CAT.slice().sort((a,b)=>tr(a)-tr(b)||a.n.localeCompare(b.n,'fr'));
+  const low=L.filter(m=>{const q=total(m);return q!==null&&q!==undefined&&q<=CFG.seuil});
+  $('app').innerHTML=head(isDir()&&DIR.recu?'Données reçues le '+DIR.recu:'')+`
+  ${low.length?`<div class="alert ${low.some(m=>total(m)<=0)?'r':'o'}">${low.length} modèle${low.length>1?'s':''} presque fini${low.length>1?'s':''} ou épuisé${low.length>1?'s':''} : ${low.map(m=>esc(m.n)).join(', ')}</div>`:''}
+  <input id="sq" type="search" placeholder="Chercher un modèle" style="margin-top:10px">
+  <div id="sl"></div>
+  ${isDir()?'':'<button class="btn ghost" id="arr">Arrivage / corriger le stock (Directeur)</button><button class="btn ghost" id="prx">Prix et promotions (Directeur)</button>'}`;
+  const draw=()=>{const q=norm($('sq').value.trim());
+    $('sl').innerHTML=L.filter(m=>!q||norm(m.n).includes(q)).map(m=>{const t=total(m),l=level(t);
+      return`<div class="stk ${l==='g'?'':l}"><button data-n="${esc(m.n)}"><span>${esc(m.n)}</span><span>${t===null||t===undefined?'<span class="price">non suivi</span>':badge(m)}</span></button>
+      ${openStk===m.n&&m.tailles?`<div class="sizes">${Object.keys(m.tailles).sort((a,b)=>num(a)-num(b)).map(s=>{const v=m.tailles[s];return`<div class="sz ${v<=0?'r':v<=1?'o':''}"><b>${esc(s)}</b><span>${v} paire${v>1?'s':''}</span></div>`}).join('')}</div>`:''}
+      ${openStk===m.n&&!m.tailles?`<div class="note" style="padding:0 14px 12px">${t===null||t===undefined?'Stock pas encore saisi.':'Pointures non détaillées.'}</div>`:''}</div>`}).join('')};
+  $('sq').oninput=draw;draw();
+  $('sl').onclick=e=>{const b=e.target.closest('button[data-n]');if(!b)return;openStk=openStk===b.dataset.n?null:b.dataset.n;draw()};
+  if(!isDir()){$('arr').onclick=()=>askPin(sheetStock);$('prx').onclick=()=>askPin(sheetPrix)}
+}
+function closeModal(){$('modal').innerHTML=''}
+function sheet(html){$('modal').innerHTML=`<div class="modal" id="mbg"><div class="sheet">${html}</div></div>`;$('mbg').onclick=e=>{if(e.target.id==='mbg')closeModal()}}
+function sheetStock(){
+  sheet(`<h2 style="margin-top:0">Arrivage ou correction du stock</h2>
+  <select id="am">${CAT.slice().sort((a,b)=>a.n.localeCompare(b.n,'fr')).map(m=>`<option>${esc(m.n)}</option>`).join('')}</select>
+  <div class="seg" style="grid-template-columns:1fr 1fr;margin-top:10px" id="amode"><button data-v="add" class="on">Ajouter un arrivage</button><button data-v="set">Corriger (compter)</button></div>
+  <div class="seg" style="grid-template-columns:1fr 1fr;margin-top:10px" id="atype"><button data-v="tot" class="on">Sans pointures</button><button data-v="sz">Par pointure</button></div>
+  <div id="abox"></div>
+  <button class="btn gold" id="aok">Valider</button><button class="btn ghost" id="ano">Fermer</button>`);
+  let mode='add',type='tot';
+  const draw=()=>{const m=CAT.find(x=>x.n===$('am').value);
+    if(type==='tot')$('abox').innerHTML=`<h2>${mode==='add'?'Nombre de paires reçues':'Nombre de paires comptées'}</h2><input id="aq" type="number" inputmode="numeric" placeholder="${mode==='set'&&total(m)!=null?'Actuel : '+total(m):''}">${m.tailles?'<p class="note">Attention : ce modèle est suivi par pointure. Choisissez « Par pointure ».</p>':''}`;
+    else $('abox').innerHTML=`<h2>${mode==='add'?'Paires reçues par pointure':'Paires comptées par pointure'}</h2><div class="sizes" style="padding:0">${SIZES.map(s=>`<div class="sz"><b>${s}</b><input type="number" inputmode="numeric" data-s="${s}" placeholder="${mode==='set'&&m.tailles&&m.tailles[s]!=null?m.tailles[s]:''}"></div>`).join('')}</div>`};
+  segH('amode',v=>{mode=v;draw()});segH('atype',v=>{type=v;draw()});$('am').onchange=draw;draw();
+  $('ano').onclick=closeModal;
+  $('aok').onclick=()=>{const m=CAT.find(x=>x.n===$('am').value);
+    if(type==='tot'){if($('aq').value==='')return;const q=num($('aq').value);
+      if(m.tailles&&!confirm('Le détail par pointure de ce modèle sera effacé. Continuer ?'))return;
+      m.tailles=null;m.stock=mode==='add'?(m.stock||0)+q:q}
+    else{const ins=[...$('abox').querySelectorAll('input')].filter(i=>i.value!=='');if(!ins.length)return;
+      if(!m.tailles){m.tailles={};}
+      if(mode==='set'&&!m.tailles)m.tailles={};
+      ins.forEach(i=>{const s=i.dataset.s,q=num(i.value);m.tailles[s]=mode==='add'?(m.tailles[s]||0)+q:q});
+      Object.keys(m.tailles).forEach(s=>{if(m.tailles[s]<=0&&mode==='set'&&ins.some(i=>i.dataset.s===s)&&num(ins.find(i=>i.dataset.s===s).value)===0)delete m.tailles[s]});
+      m.stock=null}
+    saveCat();closeModal();toast('Stock mis à jour : '+m.n+' = '+total(m));vStock()};
+}
+function sheetPrix(){
+  sheet(`<h2 style="margin-top:0">Prix de vente et promotions</h2><p class="note">1re case : prix normal (en or s'il manque). 2e case : prix promo. Videz la case promo pour arrêter la promotion.</p>
+  <input id="pq" type="search" placeholder="Chercher" style="margin-top:8px"><div id="pl"></div>
+  <h2>Nouveau modèle</h2><div class="inl"><input id="pn" placeholder="Nom" style="flex:1"><input id="pp" type="number" inputmode="numeric" placeholder="Prix" style="flex:0 0 100px"><button id="pa">+</button></div>
+  <button class="btn" id="pok">Terminé</button>`);
+  const draw=()=>{const q=norm($('pq').value.trim());$('pl').innerHTML=CAT.slice().sort((a,b)=>a.n.localeCompare(b.n,'fr')).filter(m=>!q||norm(m.n).includes(q)).map(m=>`<div class="row"><div class="l"><b>${esc(m.n)}</b></div><input type="number" inputmode="numeric" data-n="${esc(m.n)}" value="${m.p||''}" placeholder="Normal" style="flex:0 0 92px;text-align:right;padding:8px;${m.p?'':'border-color:var(--gold)'}"><input type="number" inputmode="numeric" data-promo="${esc(m.n)}" value="${m.promo||''}" placeholder="Promo" style="flex:0 0 92px;text-align:right;padding:8px;${m.promo?'border-color:var(--warn);color:var(--warn)':''}"><button class="x" data-del="${esc(m.n)}">×</button></div>`).join('')};
+  $('pq').oninput=draw;draw();
+  $('pl').oninput=e=>{const i=e.target;
+    if(i.dataset.promo){const m=CAT.find(x=>x.n===i.dataset.promo);const v=num(i.value);m.promo=v>0&&(!m.p||v<m.p)?v:null;saveCat();return}
+    const m=CAT.find(x=>x.n===i.dataset.n);if(m){m.p=num(i.value);i.style.borderColor=m.p?'':'var(--gold)';saveCat()}};
+  $('pl').onclick=e=>{const b=e.target.closest('[data-del]');if(b&&confirm(`Retirer « ${b.dataset.del} » ?`)){CAT=CAT.filter(m=>m.n!==b.dataset.del);saveCat();draw()}};
+  $('pa').onclick=()=>{const n=$('pn').value.trim();if(!n)return;if(CAT.some(m=>norm(m.n)===norm(n)))return toast('Existe déjà',1);CAT.push({n,p:num($('pp').value),stock:null,tailles:null});saveCat();$('pn').value='';$('pp').value='';draw()};
+  $('pok').onclick=()=>{closeModal();vStock()};
+}
+
+/* ================= BILAN ================= */
+let BD=today();
+function calc(d){
+  const o=getDay(d),V=o.ventes.slice().sort((a,b)=>a.id<b.id?-1:1);
+  const r={V,D:o.depenses,ca:0,frais:0,cash:0,om:0,rem:0,nb:0,dep:0,c:{boutique:0,livraison:0,envoi:0},ven:{},cats:{},envN:0,envFr:0,envCout:0,marge:0,miss:[],remPromo:0,remVend:0,clo:(o.clotures||[]).slice(-1)[0]||null,supp:o.supprimees||[],apres:0};
+  V.forEach(v=>{r.ca+=v.total;r.frais+=v.frais||0;r.cash+=v.especes;r.om+=v.om;r.nb+=v.qte;const bp=v.prixPromo||v.prixNormal;r.remPromo+=Math.max(0,v.prixNormal-bp)*v.qte;r.remVend+=Math.max(0,bp-v.prixVendu)*v.qte;r.rem+=Math.max(0,v.prixNormal-v.prixVendu)*v.qte;r.c[v.canal]+=v.qte;
+    const x=r.ven[v.vendeuse]||(r.ven[v.vendeuse]={n:0,ca:0});x.n+=v.qte;x.ca+=v.total;
+    if(v.canal==='envoi'){r.envN++;r.envFr+=v.frais||0}
+    const a=DIR.pa[v.modele];if(a)r.marge+=v.total-a*v.qte;else if(!r.miss.includes(v.modele))r.miss.push(v.modele)});
+  r.D.forEach(x=>{r.dep+=x.montant;r.cats[x.cat]=(r.cats[x.cat]||0)+x.montant;if(x.cat==='Envoi province')r.envCout+=x.montant});
+  r.apres=r.clo?V.filter(v=>v.ts>r.clo.ts).length:0;r.attendu=r.cash-r.dep;
+  r.pubUsd=DIR.pub[d]||0;r.pub=r.pubUsd*CFG.taux;
+  r.net=r.marge+r.frais-r.dep-r.pub-CFG.fixes;
+  return r;
+}
+const LAB={especes:'Espèces',om:'OM',mixte:'Espèces + OM',boutique:'Boutique',livraison:'Livraison',envoi:'Envoi'};
+function vBilan(){
+  const r=calc(BD),closed=BD===today()&&new Date().getHours()>=21;
+  $('app').innerHTML=head(isDir()?(DIR.recu?'Données reçues le '+DIR.recu:'Aucune donnée reçue de la boutique'):'')+`
+  ${isDir()?'<button class="btn gold" id="imp" style="margin-top:0">Recevoir les données de la boutique</button>':''}
+  <input id="bd" type="date" value="${BD}" style="margin-top:10px">
+  ${!isDir()&&BD===today()&&!r.clo&&lateNow()?'<div class="alert o">C\'est l\'heure : comptez la caisse et faites la clôture.</div>':closed&&r.clo?'<div class="alert k">Journée clôturée à '+r.clo.heure+'.</div>':''}
+  <div class="tot"><div>Ventes de chaussures</div><div class="big">${fmt(r.ca)}</div><div class="note">${r.nb} article${r.nb>1?'s':''}${r.frais?' · + '+fmt(r.frais)+' de frais de livraison/envoi encaissés':''}</div></div>
+  <div class="grid">
+  <div class="cell"><div>Espèces reçues</div><div>${fmt(r.cash)}</div></div>
+  <div class="cell"><div>Orange Money</div><div>${fmt(r.om)}</div></div>
+  <div class="cell"><div>Dépenses</div><div>${fmt(r.dep)}</div></div>
+  <div class="cell k"><div>Espèces en caisse</div><div>${isDir()||r.clo?fmt(r.attendu):'après le comptage'}</div></div>
+  <div class="cell"><div>Remises vendeuses</div><div>${fmt(r.remVend)}</div></div>
+  <div class="cell"><div>Remises promo</div><div>${fmt(r.remPromo)}</div></div>
+  <div class="cell"><div>Boutique · Livr. · Envoi</div><div>${r.c.boutique} · ${r.c.livraison} · ${r.c.envoi}</div></div>
+  </div>
+  ${r.envN?`<div class="alert ${r.envFr-r.envCout<0?'o':'k'}">Envois province : ${r.envN} · encaissé ${fmt(r.envFr)} · coût ${fmt(r.envCout)} · ${r.envFr-r.envCout<0?'perte':'reste'} ${fmt(Math.abs(r.envFr-r.envCout))}</div>`:''}
+  ${cloHtml(r)}
+  <button class="btn" id="cp">Copier le bilan pour WhatsApp</button>
+  ${isDir()?`<div style="margin-top:20px;padding:14px;border:2px dashed var(--gold);border-radius:14px">
+   <h2 style="margin-top:0">Résultat du jour <small>· Directeur</small></h2>
+   <div class="inl"><input id="pub" type="number" inputmode="decimal" placeholder="Pub du jour en dollars" value="${r.pubUsd||''}" style="flex:1"><button id="pubok">OK</button></div>
+   <div class="grid">
+   <div class="cell"><div>Marge brute</div><div>${fmt(r.marge)}</div></div>
+   <div class="cell"><div>Frais encaissés</div><div>${fmt(r.frais)}</div></div>
+   <div class="cell"><div>Pub (${r.pubUsd} $ × ${CFG.taux})</div><div>${fmt(r.pub)}</div></div>
+   <div class="cell"><div>Dépenses + charges fixes</div><div>${fmt(r.dep+CFG.fixes)}</div></div>
+   <div class="cell ${r.net>=CFG.objectif?'g':'r'}"><div>Bénéfice net</div><div>${fmt(r.net)}</div></div>
+   <div class="cell ${r.net>=CFG.objectif?'g':'r'}"><div>Objectif ${fmt(CFG.objectif)}</div><div>${Math.round(r.net/CFG.objectif*100)} %</div></div>
+   </div>
+   ${r.miss.length?`<div class="alert o">Prix d'achat manquant : ${r.miss.map(esc).join(', ')}. Ajoutez-le dans « Achats ».</div>`:''}
+   ${r.supp.length?`<h2>Suppressions du jour</h2>${r.supp.map(x=>`<div class="row"><div class="l"><b>${x.type==='vente'?'Vente':'Dépense'} : ${esc(x.libelle)}</b><span>saisie ${x.heure||'?'} · supprimée ${x.supp}</span></div><div class="p">${fmt(x.montant)}</div></div>`).join('')}`:''}
+   <button class="btn ghost" id="cpd">Copier mon bilan complet</button></div>`:''}
+  <h2>Dépenses par type</h2>
+  ${Object.keys(r.cats).length?Object.entries(r.cats).map(([k,v])=>`<div class="row"><div class="l"><b>${esc(k)}</b></div><div class="p">${fmt(v)}</div></div>`).join(''):'<div class="empty">Aucune dépense.</div>'}
+  <h2>Ventes du jour</h2>
+  <div id="vl">${r.V.length?r.V.map((v,i)=>`<div class="row"><div class="l"><b>${i+1}. ${esc(v.modele)}${v.taille?' ('+esc(v.taille)+')':''}${v.qte>1?' ×'+v.qte:''}</b><span>${v.heure} · ${LAB[v.paiement]}${v.paiement==='mixte'?' ('+fmt(v.om)+' OM)':''} · ${LAB[v.canal]}${v.frais?' +'+fmt(v.frais):''} · ${esc(v.vendeuse)}</span></div><div class="p">${fmt(v.total)}${v.prixVendu<v.prixNormal?`<s>${fmt(v.prixNormal*v.qte)}</s>`:''}</div>${isDir()?'':`<button class="x" data-id="${v.id}">×</button>`}</div>`).join(''):'<div class="empty">Aucune vente ce jour-là.</div>'}</div>
+  <h2>Par vendeuse</h2>
+  ${Object.keys(r.ven).length?Object.entries(r.ven).sort((a,b)=>b[1].ca-a[1].ca).map(([n,x])=>`<div class="row"><div class="l"><b>${esc(n)}</b><span>${x.n} article${x.n>1?'s':''}</span></div><div class="p">${fmt(x.ca)}</div></div>`).join(''):'<div class="empty">—</div>'}
+  ${isDir()?'':'<button class="btn gold" id="send">Envoyer les données au Directeur</button>'}`;
+  $('bd').onchange=()=>{BD=$('bd').value||today();vBilan()};
+  $('cp').onclick=()=>copy(txtBilan(r,BD));
+  if($('clo'))$('clo').onclick=()=>sheetCloture(BD);
+  if(isDir()){$('imp').onclick=importFile;$('pubok').onclick=()=>{DIR.pub[BD]=num($('pub').value);saveDir();toast('Pub enregistrée');vBilan()};$('cpd').onclick=()=>copy(txtDir(r,BD))}
+  else{
+    $('send').onclick=exportFile;
+    $('vl').onclick=e=>{const b=e.target.closest('.x');if(!b)return;const o=getDay(BD),v=o.ventes.find(x=>x.id===b.dataset.id);
+      if(!v)return;guard(v,o,()=>{if(!confirm(`Supprimer la vente « ${v.modele} » à ${fmt(v.total)} ? Le stock sera remis.`))return;
+      logSupp(o,'vente',v);o.ventes=o.ventes.filter(x=>x.id!==v.id);o.depenses=o.depenses.filter(x=>x.lien!==v.id);putDay(BD,o);
+      if(CAT.some(m=>m.n===v.modele))moveStock(v.modele,v.taille,v.qte);toast('Vente supprimée, stock remis');vBilan()})};
+  }
+}
+function txtBilan(r,d){
+  let t=`*BILAN ROYAUM' DES CHAUSSURES*\n${longDate(d)}\n\nArticles vendus : ${r.nb}\nVentes de chaussures : ${fmt(r.ca)}\n`;
+  if(r.frais)t+=`Frais livraison/envoi encaissés : ${fmt(r.frais)}\n`;
+  t+=`Espèces reçues : ${fmt(r.cash)}\nOrange Money : ${fmt(r.om)}\nDépenses : ${fmt(r.dep)}\n*Espèces en caisse (calcul) : ${fmt(r.attendu)}*\n${r.clo?`Espèces comptées : ${fmt(r.clo.compte)} → ${r.clo.ecart===0?'caisse juste':(r.clo.ecart<0?'MANQUANT ':'SURPLUS ')+fmt(Math.abs(r.clo.ecart))}${r.clo.raison?' ('+r.clo.raison+')':''} - clôture ${r.clo.heure} par ${r.clo.par}\n`:'Caisse pas encore comptée\n'}Remises vendeuses : ${fmt(r.remVend)}\nRemises promo : ${fmt(r.remPromo)}\nBoutique ${r.c.boutique} / Livraison ${r.c.livraison} / Envoi ${r.c.envoi}\n`;
+  if(r.envN)t+=`Envois province : encaissé ${fmt(r.envFr)}, coût ${fmt(r.envCout)}\n`;
+  t+=`\n*Détail des ventes*\n`+(r.V.map((v,i)=>`${i+1}. ${v.modele}${v.taille?' ('+v.taille+')':''}${v.qte>1?' x'+v.qte:''} : ${fmt(v.total)}${v.prixVendu<v.prixNormal?' (normal '+fmt(v.prixNormal*v.qte)+')':''} - ${LAB[v.paiement]}${v.paiement==='mixte'?' dont '+fmt(v.om)+' OM':''} - ${LAB[v.canal]}${v.frais?' +'+fmt(v.frais):''} - ${v.vendeuse}`).join('\n')||'Aucune vente');
+  if(r.D.length)t+='\n\n*Dépenses*\n'+r.D.map(x=>`- ${x.cat}${x.motif?' ('+x.motif+')':''} : ${fmt(x.montant)}`).join('\n');
+  return t;
+}
+function txtDir(r,d){return `*RÉSULTAT DU ${longDate(d).toUpperCase()}*\nCA brut : ${fmt(r.ca+r.frais)} (Espèces ${fmt(r.cash)} / OM ${fmt(r.om)})\nMarge brute : ${fmt(r.marge)}\nFrais encaissés : ${fmt(r.frais)}\nPub : ${r.pubUsd} $ = ${fmt(r.pub)}\nDépenses : ${fmt(r.dep)}\nCharges fixes : ${fmt(CFG.fixes)}\n*Bénéfice net : ${fmt(r.net)}* (${Math.round(r.net/CFG.objectif*100)} % de l'objectif)\nRemises : ${fmt(r.rem)} (vendeuses ${fmt(r.remVend)}, promo ${fmt(r.remPromo)})${r.clo?'\nCaisse : '+(r.clo.ecart===0?'juste':(r.clo.ecart<0?'manquant ':'surplus ')+fmt(Math.abs(r.clo.ecart))):'\nCaisse non comptée'}${r.supp.length?'\nSuppressions : '+r.supp.length:''}${r.miss.length?'\nPA manquant : '+r.miss.join(', '):''}`}
+async function copy(t){let ok=false;try{await navigator.clipboard.writeText(t);ok=true}catch(e){}
+  if(!ok){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{ok=document.execCommand('copy')}catch(e){}a.remove()}
+  toast(ok?'Copié : collez-le dans WhatsApp':'Copie impossible',!ok)}
+
+/* ================= CLÔTURE DE CAISSE ================= */
+const lateNow=()=>{const n=new Date();return n.getHours()*60+n.getMinutes()>=20*60+55};
+function cloHtml(r){
+  let h='';
+  if(r.clo){const e=r.clo.ecart,c=e===0?'g':e<0?'r':'o';
+    h=`<div class="alert ${c==='g'?'k':c}" style="${c==='g'?'background:var(--okl);color:var(--ok)':''}">Caisse comptée à ${r.clo.heure} par ${esc(r.clo.par)} : ${fmt(r.clo.compte)} · ${e===0?'caisse juste ✓':(e<0?'MANQUANT ':'SURPLUS ')+fmt(Math.abs(e))}${r.clo.raison?'<br><span style="font-weight:400">Explication : '+esc(r.clo.raison)+'</span>':''}</div>`;
+    if(r.apres)h+=`<div class="alert o">${r.apres} vente${r.apres>1?'s':''} ajoutée${r.apres>1?'s':''} après la clôture : recomptez la caisse.</div>`}
+  if(!isDir()&&BD===today())h+=`<button class="btn ${r.clo&&!r.apres?'ghost':'gold'}" id="clo">${r.clo?'Recompter la caisse':'Compter la caisse (clôture)'}</button>`;
+  return h;
+}
+function sheetCloture(d){
+  const r=calc(d);let par=S.get('vendeuse',null);
+  sheet(`<h2 style="margin-top:0">Clôture de caisse</h2>
+  <p class="note">Comptez tous les billets et pièces de la caisse, puis écrivez le montant. L'application compare avec les ventes notées.</p>
+  <h2>Espèces comptées</h2><input id="cc" type="number" inputmode="numeric" placeholder="Montant compté">
+  <label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-weight:600"><input id="omv" type="checkbox" style="width:24px;height:24px"> J'ai vérifié les OM reçus aujourd'hui (${fmt(r.om)})</label>
+  <div id="cres"></div>
+  <h2>Qui clôture ?</h2><div class="seg" id="cpar">${CFG.vendeuses.map(n=>`<button data-v="${esc(n)}" class="${par===n?'on':''}">${esc(n)}</button>`).join('')}</div>
+  <button class="btn gold" id="cok">Voir le résultat</button><button class="btn ghost" id="cno">Annuler</button>`);
+  segH('cpar',v=>par=v);$('cno').onclick=closeModal;
+  let step=0;
+  $('cok').onclick=()=>{
+    if($('cc').value==='')return toast('Écrivez le montant compté',1);
+    if(!par)return toast('Choisissez qui clôture',1);
+    if(!$('omv').checked)return toast('Vérifiez les OM reçus',1);
+    const compte=num($('cc').value),ecart=compte-r.attendu;
+    if(step===0){step=1;$('cc').disabled=true;
+      $('cres').innerHTML=ecart===0?'<div class="alert" style="background:var(--okl);color:var(--ok)">Caisse juste ✓</div>':
+        `<div class="alert ${ecart<0?'r':'o'}">${ecart<0?'MANQUANT':'SURPLUS'} de ${fmt(Math.abs(ecart))}</div><h2>Expliquez</h2><div class="chips" id="rq">${(ecart<0?['Vente non payée','Dépense oubliée','Erreur de monnaie','Je ne sais pas']:['Vente oubliée de noter','Erreur de monnaie','Je ne sais pas']).map(t=>`<button>${t}</button>`).join('')}</div><input id="rs" placeholder="Détail (obligatoire)" style="margin-top:8px"><p class="note">Une vente ou une dépense oubliée ? Fermez, ajoutez-la, puis recomptez.</p>`;
+      if($('rq'))$('rq').onclick=e=>{const b=e.target.closest('button');if(b)$('rs').value=b.textContent};
+      $('cok').textContent='Valider la clôture';return}
+    const raison=ecart===0?'':($('rs').value||'').trim();
+    if(ecart!==0&&!raison)return toast('Expliquez le '+(ecart<0?'manquant':'surplus'),1);
+    const o=getDay(d);(o.clotures=o.clotures||[]).push({ts:Date.now(),heure:new Date().toTimeString().slice(0,5),attendu:r.attendu,compte,ecart,raison,par,om:r.om});
+    putDay(d,o);closeModal();toast(ecart===0?'Clôture faite : caisse juste ✓':'Clôture faite avec '+(ecart<0?'manquant':'surplus'),ecart<0);vBilan();
+  };
+}
+let reminded=S.get('rappel','');
+setInterval(()=>{if(isDir()||!CFG.mode)return;const d=today();if(lateNow()&&reminded!==d&&!(getDay(d).clotures||[]).length){reminded=d;S.set('rappel',d);toast('20 h 55 : comptez la caisse et faites la clôture',1);if(navigator.vibrate)navigator.vibrate([300,150,300]);if(TAB==='bilan'||TAB==='vendre')go(TAB)}},30000);
+
+/* ================= Échange boutique → Directeur ================= */
+function bundle(){const jours={};S.keys('jour:').forEach(k=>jours[k.slice(5)]=S.get(k));return{app:'rdc',v:1,cree:new Date().toISOString(),cat:CAT,cfg:{vendeuses:CFG.vendeuses,categories:CFG.categories,seuil:CFG.seuil,envoiClient:CFG.envoiClient,envoiCout:CFG.envoiCout},jours}}
+async function exportFile(){
+  const name=`RC-Comptes_${today()}_${new Date().toTimeString().slice(0,5).replace(':','h')}.json`;
+  const file=new File([JSON.stringify(bundle())],name,{type:'application/json'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"Royaum' des Comptes",text:'Données de la boutique'});return}}catch(e){if(e.name==='AbortError')return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();a.remove();toast('Fichier enregistré dans Téléchargements');
+}
+function pickFile(cb){const i=document.createElement('input');i.type='file';i.accept='.json,application/json,*/*';i.onchange=()=>{const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{cb(JSON.parse(r.result))}catch(e){toast('Fichier illisible',1)}};r.readAsText(f)};i.click()}
+function importFile(){pickFile(b=>{
+  if(b.app!=='rdc'||!b.jours)return toast("Ce n'est pas un fichier de Royaum' des Comptes",1);
+  if(b.pa)return toast("Ce fichier contient des prix d'achat : importez-le dans « Achats »",1);
+  S.keys('jour:').forEach(k=>localStorage.removeItem('rdc:'+k));
+  Object.entries(b.jours).forEach(([d,o])=>S.set('jour:'+d,o));
+  CAT=b.cat;saveCat();if(b.cfg){Object.assign(CFG,b.cfg);saveCfg()}
+  DIR.recu=new Date(b.cree).toLocaleString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});saveDir();
+  BD=today();toast('Données de la boutique reçues ✓');go('bilan')})}
+
+/* ================= ACHATS (Directeur) ================= */
+function vAchats(){
+  $('app').innerHTML=head()+`<h2>Prix d'achat <small>· ce téléphone seulement</small></h2>
+  <p class="note">Les prix d'achat ne vont jamais sur le téléphone de la boutique. Les cases en or sont vides.</p>
+  <button class="btn ghost" id="impa">Charger un fichier de prix d'achat</button>
+  <input id="aq" type="search" placeholder="Chercher" style="margin-top:10px"><div id="al"></div>`;
+  const names=()=>[...new Set(CAT.map(m=>m.n).concat(Object.keys(DIR.pa)))].sort((a,b)=>a.localeCompare(b,'fr'));
+  const draw=()=>{const q=norm($('aq').value.trim());$('al').innerHTML=names().filter(n=>!q||norm(n).includes(q)).map(n=>{const m=CAT.find(x=>x.n===n);return`<div class="row"><div class="l"><b>${esc(n)}</b><span>${m&&m.p?'vente '+fmt(m.p)+(DIR.pa[n]?' · marge '+fmt(m.p-DIR.pa[n]):''):''}</span></div><input type="number" inputmode="numeric" data-n="${esc(n)}" value="${DIR.pa[n]||''}" placeholder="Achat" style="flex:0 0 110px;text-align:right;padding:8px;${DIR.pa[n]?'':'border-color:var(--gold)'}"></div>`}).join('')};
+  $('aq').oninput=draw;draw();
+  $('al').onchange=e=>{const i=e.target;if(!i.dataset.n)return;askPin(()=>{const v=num(i.value);if(v)DIR.pa[i.dataset.n]=v;else delete DIR.pa[i.dataset.n];saveDir();toast("Prix d'achat enregistré");draw()})};
+  $('impa').onclick=()=>askPin(()=>pickFile(b=>{if(!b.pa)return toast("Pas un fichier de prix d'achat",1);Object.assign(DIR.pa,b.pa);saveDir();toast(Object.keys(b.pa).length+" prix d'achat chargés ✓");vAchats()}));
+}
+
+/* ================= RÉGLAGES ================= */
+function vReglages(){
+  $('app').innerHTML=head()+`
+  <h2>Ce téléphone</h2><div class="note">Mode : <b>${isDir()?'Directeur':'Boutique'}</b></div>
+  <h2>Seuil d'alerte du stock</h2><div class="note">Orange quand il reste ce nombre de paires ou moins, rouge à zéro.</div>
+  <div class="inl"><input id="seuil" type="number" inputmode="numeric" value="${CFG.seuil}" style="flex:1"><button id="seuilok">OK</button></div>
+  ${isDir()?`<h2>Pub et objectif</h2>
+  <div class="grid"><div><div class="note">Taux F CFA / $</div><input id="taux" type="number" value="${CFG.taux}"></div><div><div class="note">Charges fixes / jour</div><input id="fixes" type="number" value="${CFG.fixes}"></div><div><div class="note">Objectif / jour</div><input id="obj" type="number" value="${CFG.objectif}"></div></div>
+  <button class="btn" id="dirok">Enregistrer</button>`:`
+  <h2>Envoi province</h2>
+  <div class="grid"><div><div class="note">Payé par le client</div><input id="ec" type="number" value="${CFG.envoiClient}"></div><div><div class="note">Coût pour la boutique</div><input id="eo" type="number" value="${CFG.envoiCout}"></div></div>
+  <h2>Vendeuses</h2><input id="vds" value="${esc(CFG.vendeuses.join(', '))}"><div class="note">Séparer les noms par des virgules.</div>
+  <button class="btn" id="bok">Enregistrer (code Directeur)</button>
+  <h2>Sauvegarde</h2>
+  <button class="btn ghost" id="exp">Envoyer / sauvegarder toutes les données</button>
+  <button class="btn ghost" id="rest">Restaurer une sauvegarde (code Directeur)</button>`}
+  <h2>Code du Directeur</h2><button class="btn ghost" id="pin">Changer le code</button>
+  <p class="note" style="margin-top:24px">Royaum' des Comptes · fonctionne sans connexion. Les données restent dans ce téléphone : envoyez-les chaque soir au Directeur, cela sert aussi de sauvegarde.</p>`;
+  $('seuilok').onclick=()=>askPin(()=>{CFG.seuil=Math.max(0,num($('seuil').value));saveCfg();toast('Seuil enregistré')});
+  $('pin').onclick=()=>askPin(()=>{const a=prompt('Nouveau code (4 chiffres ou plus) :');if(!a||a.trim().length<4)return toast('Code non changé',1);if(prompt('Répéter le nouveau code :')!==a)return toast('Codes différents',1);CFG.pin=hash(a.trim());saveCfg();toast('Code changé')});
+  if(isDir())$('dirok').onclick=()=>askPin(()=>{CFG.taux=num($('taux').value)||637;CFG.fixes=num($('fixes').value);CFG.objectif=num($('obj').value)||1;saveCfg();toast('Enregistré')});
+  else{
+    $('bok').onclick=()=>askPin(()=>{CFG.envoiClient=num($('ec').value);CFG.envoiCout=num($('eo').value);const v=$('vds').value.split(',').map(s=>s.trim()).filter(Boolean);if(v.length)CFG.vendeuses=v;saveCfg();toast('Réglages enregistrés')});
+    $('exp').onclick=exportFile;
+    $('rest').onclick=()=>askPin(()=>pickFile(b=>{if(b.app!=='rdc'||!b.jours)return toast('Fichier non reconnu',1);if(!confirm('Remplacer toutes les données de ce téléphone par cette sauvegarde ?'))return;
+      S.keys('jour:').forEach(k=>localStorage.removeItem('rdc:'+k));Object.entries(b.jours).forEach(([d,o])=>S.set('jour:'+d,o));CAT=b.cat;saveCat();toast('Sauvegarde restaurée ✓');go('vendre')}));
+  }
+}
+
+/* ================= Démarrage ================= */
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+if(!CFG.mode||!CFG.pin)vSetup();else go(isDir()?'bilan':'vendre');
+</script>
+</body>
+</html>
