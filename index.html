@@ -95,7 +95,7 @@ nav button.on{opacity:1;box-shadow:inset 0 4px 0 var(--gold)}
 /* ================= Données de base ================= */
 const DEFAULT_CAT=[["Adidas",20000],["Ana Galia",0],["Babauche",14000],["Basket enfant",4500],["Basket Prama",6000],["Basket Promo",5000],["Berlutie de Paris",20000],["Bouk Shoes",20000],["Bromey",17500],["Ceinture cuir",12000],["Ceinture simple",6000],["Celio",20000],["Celio montante",20000],["Chamo",15000],["Chausse-pied",1500],["Chaussette",500],["Cirage",750],["Gellegien",15000],["Gemine Quality",9000],["Grosse Mocassin",20000],["Grosse Pointure",13000],["H Remaw",20000],["IM Shoes montante",20000],["IM Shoes soulier",20000],["Jaguar",15000],["JMS",15000],["John Foster",20000],["John Foster montant",20000],["Kosta",20000],["Lacoste",11000],["Liba Fashion",8000],["Mocassin Sulti",0],["Mocassin Turquie",20000],["New Fashion",20000],["Nike",17500],["Novalion",18000],["Nu pied cuir",20000],["Nu pied Hazana",15000],["Nu pied lion",15000],["Nu pied Timberland",9000],["Nu pied Zaza",7000],["Nulimsen",17500],["OGGI",15000],["Original",10000],["Pierre Cardin",15000],["Présidentielle bout pointu",20000],["Présidentielle bout rond",20000],["RC Elegance",20000],["RC Moccasin",15000],["RC Soulier boucle",20000],["RC Soulier jolie gomme",17500],["Retos",20000],["Ripano",15000],["Sebago",10000],["SLmu+3",0],["Timberland soulier",20000],["TOD",15000],["Vrai cuir",12000],["Weston",15000]].map(([n,p])=>({n,p,stock:null,tailles:null}));
 const DEFAULT_CFG={mode:null,pin:null,seuil:3,vendeuses:["Christmie","Djamila","Flora","Samira","Sylvie"],envoiClient:1500,envoiCout:2000,
-  categories:["Ration (nourriture)","Unités","Essence","Envoi province","Autre"],taux:637,fixes:9133,objectif:33334};
+  categories:["Ration (nourriture)","Unités","Essence","Envoi province","Autre"],taux:637,fixes:9133,objectif:33334,alerte:"22672052470"};
 const SIZES=["36","37","38","39","40","41","42","43","44","45","46","47"];
 
 /* ================= Outils ================= */
@@ -168,7 +168,7 @@ function vSetup(){
     if(!m)return toast('Choisissez le téléphone',1);
     const a=$('p1').value.trim();if(a.length<4)return toast('Code trop court',1);
     if(a!==$('p2').value.trim())return toast('Les deux codes sont différents',1);
-    CFG.mode=m;CFG.pin=hash(a);saveCfg();saveCat();go(isDir()?'bilan':'vendre');
+    CFG.mode=m;CFG.pin=hash(a);saveCfg();saveCat();go(isDir()?'bilan':'vendre');if(location.hash)hashImport();
   };
 }
 
@@ -310,7 +310,7 @@ function vStock(){
   ${low.length?`<div class="alert ${low.some(m=>total(m)<=0)?'r':'o'}">${low.length} modèle${low.length>1?'s':''} presque fini${low.length>1?'s':''} ou épuisé${low.length>1?'s':''} : ${low.map(m=>esc(m.n)).join(', ')}</div>`:''}
   <input id="sq" type="search" placeholder="Chercher un modèle" style="margin-top:10px">
   <div id="sl"></div>
-  ${isDir()?'':'<button class="btn ghost" id="arr">Arrivage / corriger le stock (Directeur)</button><button class="btn ghost" id="prx">Prix et promotions (Directeur)</button>'}`;
+  ${isDir()?'':'<button class="btn gold" id="arr2">Enregistrer un arrivage</button><button class="btn ghost" id="arr">Corriger le stock (Directeur)</button><button class="btn ghost" id="prx">Prix et promotions (Directeur)</button>'}`;
   const draw=()=>{const q=norm($('sq').value.trim());
     $('sl').innerHTML=L.filter(m=>!q||norm(m.n).includes(q)).map(m=>{const t=total(m),l=level(t);
       return`<div class="stk ${l==='g'?'':l}"><button data-n="${esc(m.n)}"><span>${esc(m.n)}</span><span>${t===null||t===undefined?'<span class="price">non suivi</span>':badge(m)}</span></button>
@@ -318,10 +318,36 @@ function vStock(){
       ${openStk===m.n&&!m.tailles?`<div class="note" style="padding:0 14px 12px">${t===null||t===undefined?'Stock pas encore saisi.':'Pointures non détaillées.'}</div>`:''}</div>`}).join('')};
   $('sq').oninput=draw;draw();
   $('sl').onclick=e=>{const b=e.target.closest('button[data-n]');if(!b)return;openStk=openStk===b.dataset.n?null:b.dataset.n;draw()};
-  if(!isDir()){$('arr').onclick=()=>askPin(sheetStock);$('prx').onclick=()=>askPin(sheetPrix)}
+  if(!isDir()){$('arr2').onclick=sheetArrivage;$('arr').onclick=()=>askPin(sheetStock);$('prx').onclick=()=>askPin(sheetPrix)}
 }
 function closeModal(){$('modal').innerHTML=''}
 function sheet(html){$('modal').innerHTML=`<div class="modal" id="mbg"><div class="sheet">${html}</div></div>`;$('mbg').onclick=e=>{if(e.target.id==='mbg')closeModal()}}
+/* ---- Arrivage saisi par les vendeuses : définitif après enregistrement ---- */
+function sheetArrivage(){
+  let par=S.get('vendeuse',null),parSz=true;
+  sheet(`<h2 style="margin-top:0">Nouvel arrivage</h2>
+  <p class="note">Notez seulement les paires reçues, après avoir donné le chiffre au Directeur. <b>Une fois enregistré, on ne peut plus modifier.</b></p>
+  <select id="am" style="margin-top:8px"><option value="">— Choisir le modèle —</option>${CAT.slice().sort((a,b)=>a.n.localeCompare(b.n,'fr')).map(m=>`<option>${esc(m.n)}</option>`).join('')}</select>
+  <div class="seg" style="grid-template-columns:1fr 1fr;margin-top:10px" id="atype"><button data-v="sz" class="on">Par pointure</button><button data-v="tot">Sans pointures</button></div>
+  <div id="abox"></div>
+  <h2>Livré par <small>(facultatif)</small></h2><input id="aliv" placeholder="Nom du livreur">
+  <h2>Qui enregistre ?</h2><div class="seg" id="apar">${CFG.vendeuses.map(n=>`<button data-v="${esc(n)}" class="${par===n?'on':''}">${esc(n)}</button>`).join('')}</div>
+  <button class="btn gold" id="aok">Enregistrer l'arrivage</button><button class="btn ghost" id="ano">Annuler</button>`);
+  const draw=()=>{$('abox').innerHTML=parSz?`<h2>Paires reçues par pointure</h2><div class="sizes" style="padding:0">${SIZES.map(s=>`<div class="sz"><b>${s}</b><input type="number" inputmode="numeric" data-s="${s}"></div>`).join('')}</div>`:`<h2>Nombre de paires reçues</h2><input id="aq" type="number" inputmode="numeric">`};
+  segH('atype',v=>{parSz=v==='sz';draw()});segH('apar',v=>{par=v;S.set('vendeuse',v)});draw();$('ano').onclick=closeModal;
+  $('aok').onclick=()=>{
+    const m=CAT.find(x=>x.n===$('am').value);if(!m)return toast('Choisissez le modèle',1);if(!par)return toast('Qui enregistre ?',1);
+    let det={},q=0;
+    if(parSz){[...$('abox').querySelectorAll('input')].forEach(i=>{const v=Math.round(num(i.value));if(v>0){det[i.dataset.s]=v;q+=v}});if(!q)return toast('Écrivez au moins une pointure',1);
+      if(!m.tailles&&m.stock>0&&!confirm(`${m.n} était compté sans pointures (${m.stock} paires). Continuer par pointure ? Le Directeur devra recompter l'ancien stock.`))return}
+    else{q=Math.round(num($('aq').value));if(q<=0)return toast('Écrivez le nombre de paires',1);if(m.tailles)return toast('Ce modèle est suivi par pointure : choisissez « Par pointure »',1)}
+    const txt=parSz?Object.entries(det).map(([s,v])=>`${v} en ${s}`).join(', '):q+' paires';
+    if(!confirm(`Confirmer l'arrivage : ${m.n}, ${txt} (total ${q}) ?\nAprès cela, impossible de modifier.`))return;
+    if(parSz){if(!m.tailles)m.tailles={};Object.entries(det).forEach(([s,v])=>m.tailles[s]=(m.tailles[s]||0)+v);m.stock=null}else m.stock=(m.stock||0)+q;
+    saveCat();
+    const d=today(),o=getDay(d),now=new Date();(o.arrivages=o.arrivages||[]).push({id:uid(),ts:now.getTime(),heure:now.toTimeString().slice(0,5),modele:m.n,detail:parSz?det:null,qte:q,par,livreur:$('aliv').value.trim()});putDay(d,o);
+    closeModal();toast(`Arrivage enregistré : ${q} ${m.n} ✓`);vStock()};
+}
 function sheetStock(){
   sheet(`<h2 style="margin-top:0">Arrivage ou correction du stock</h2>
   <select id="am">${CAT.slice().sort((a,b)=>a.n.localeCompare(b.n,'fr')).map(m=>`<option>${esc(m.n)}</option>`).join('')}</select>
@@ -382,6 +408,7 @@ function vBilan(){
   const r=calc(BD),closed=BD===today()&&new Date().getHours()>=21;
   $('app').innerHTML=head(isDir()?(DIR.recu?'Données reçues le '+DIR.recu:'Aucune donnée reçue de la boutique'):'')+`
   ${isDir()?'<button class="btn gold" id="imp" style="margin-top:0">Recevoir un fichier de la boutique</button><p class="note" style="margin-top:6px">Le plus simple : touchez le lien envoyé chaque soir par la boutique sur WhatsApp.</p>':''}
+  <div class="seg" style="grid-template-columns:1fr 1fr;margin-top:10px" id="bv"><button class="on">Jour</button><button data-m="1">Mois (15 → 14)</button></div>
   <input id="bd" type="date" value="${BD}" style="margin-top:10px">
   ${!isDir()&&BD===today()&&!r.clo&&lateNow()?'<div class="alert o">C\'est l\'heure : comptez la caisse et faites la clôture.</div>':closed&&r.clo?'<div class="alert k">Journée clôturée à '+r.clo.heure+'.</div>':''}
   <div class="tot"><div>Ventes de chaussures</div><div class="big">${fmt(r.ca)}</div><div class="note">${r.nb} article${r.nb>1?'s':''}${r.frais?' · + '+fmt(r.frais)+' de frais de livraison/envoi encaissés':''}</div></div>
@@ -413,12 +440,14 @@ function vBilan(){
    <button class="btn ghost" id="cpd">Copier mon bilan complet</button></div>`:''}
   <h2>Dépenses par type</h2>
   ${Object.keys(r.cats).length?Object.entries(r.cats).map(([k,v])=>`<div class="row"><div class="l"><b>${esc(k)}</b></div><div class="p">${fmt(v)}</div></div>`).join(''):'<div class="empty">Aucune dépense.</div>'}
+  ${(getDay(BD).arrivages||[]).length?`<h2>Arrivages du jour</h2>${getDay(BD).arrivages.map(a=>`<div class="row"><div class="l"><b>${esc(a.modele)} · ${a.qte} paire${a.qte>1?'s':''}</b><span>${a.heure} · ${a.detail?Object.entries(a.detail).map(([s,v])=>v+'×'+s).join(' '):'sans pointures'} · par ${esc(a.par)}${a.livreur?' · livré par '+esc(a.livreur):''}</span></div></div>`).join('')}`:''}
   <h2>Ventes du jour</h2>
   <div id="vl">${r.V.length?r.V.map((v,i)=>`<div class="row"><div class="l"><b>${i+1}. ${esc(v.modele)}${v.taille?' ('+esc(v.taille)+')':''}${v.qte>1?' ×'+v.qte:''}</b><span>${v.heure} · ${LAB[v.paiement]}${v.paiement==='mixte'?' ('+fmt(v.om)+' OM)':''} · ${LAB[v.canal]}${v.frais?' +'+fmt(v.frais):''} · ${esc(v.vendeuse)}</span></div><div class="p">${fmt(v.total)}${v.prixVendu<v.prixNormal?`<s>${fmt(v.prixNormal*v.qte)}</s>`:''}</div>${isDir()?'':`<button class="x" data-id="${v.id}">×</button>`}</div>`).join(''):'<div class="empty">Aucune vente ce jour-là.</div>'}</div>
   <h2>Par vendeuse</h2>
   ${Object.keys(r.ven).length?Object.entries(r.ven).sort((a,b)=>b[1].ca-a[1].ca).map(([n,x])=>`<div class="row"><div class="l"><b>${esc(n)}</b><span>${x.n} article${x.n>1?'s':''}</span></div><div class="p">${fmt(x.ca)}</div></div>`).join(''):'<div class="empty">—</div>'}
   ${isDir()?'':'<button class="btn gold" id="send">Envoyer les données au Directeur</button>'}`;
   $('bd').onchange=()=>{BD=$('bd').value||today();vBilan()};
+  $('bv').onclick=e=>{const b=e.target.closest('button');if(b&&b.dataset.m){MP=0;vMois()}};
   $('cp').onclick=()=>copy(txtBilan(r,BD));
   if($('clo'))$('clo').onclick=()=>sheetCloture(BD);
   if(isDir()){$('imp').onclick=importFile;$('pubok').onclick=()=>{DIR.pub[BD]=num($('pub').value);saveDir();toast('Pub enregistrée');vBilan()};$('cpd').onclick=()=>copy(txtDir(r,BD))}
@@ -436,6 +465,7 @@ function txtBilan(r,d){
   t+=`Espèces reçues : ${fmt(r.cash)}\nOrange Money : ${fmt(r.om)}\nDépenses : ${fmt(r.dep)}\n*Espèces en caisse (calcul) : ${fmt(r.attendu)}*\n${r.clo?`Espèces comptées : ${fmt(r.clo.compte)} → ${r.clo.ecart===0?'caisse juste':(r.clo.ecart<0?'MANQUANT ':'SURPLUS ')+fmt(Math.abs(r.clo.ecart))}${r.clo.raison?' ('+r.clo.raison+')':''} - clôture ${r.clo.heure} par ${r.clo.par}\n`:'Caisse pas encore comptée\n'}Remises vendeuses : ${fmt(r.remVend)}\nRemises promo : ${fmt(r.remPromo)}\nBoutique ${r.c.boutique} / Livraison ${r.c.livraison} / Envoi ${r.c.envoi}\n`;
   if(r.envN)t+=`Envois province : encaissé ${fmt(r.envFr)}, coût ${fmt(r.envCout)}\n`;
   t+=`\n*Détail des ventes*\n`+(r.V.map((v,i)=>`${i+1}. ${v.modele}${v.taille?' ('+v.taille+')':''}${v.qte>1?' x'+v.qte:''} : ${fmt(v.total)}${v.prixVendu<v.prixNormal?' (normal '+fmt(v.prixNormal*v.qte)+')':''} - ${LAB[v.paiement]}${v.paiement==='mixte'?' dont '+fmt(v.om)+' OM':''} - ${LAB[v.canal]}${v.frais?' +'+fmt(v.frais):''} - ${v.vendeuse}`).join('\n')||'Aucune vente');
+  const AR=getDay(d).arrivages||[];if(AR.length)t+='\n\n*Arrivages*\n'+AR.map(a=>`- ${a.modele} : ${a.qte} paire(s)${a.detail?' ('+Object.entries(a.detail).map(([s,v])=>v+' en '+s).join(', ')+')':''} - ${a.par}${a.livreur?', livré par '+a.livreur:''}`).join('\n');
   if(r.D.length)t+='\n\n*Dépenses*\n'+r.D.map(x=>`- ${x.cat}${x.motif?' ('+x.motif+')':''} : ${fmt(x.montant)}`).join('\n');
   return t;
 }
@@ -479,13 +509,15 @@ function sheetCloture(d){
     if(ecart!==0&&!raison)return toast('Expliquez le '+(ecart<0?'manquant':'surplus'),1);
     const o=getDay(d);(o.clotures=o.clotures||[]).push({ts:Date.now(),heure:new Date().toTimeString().slice(0,5),attendu:r.attendu,compte,ecart,raison,par,om:r.om});
     putDay(d,o);closeModal();toast(ecart===0?'Clôture faite : caisse juste ✓':'Clôture faite avec '+(ecart<0?'manquant':'surplus'),ecart<0);vBilan();
+    if(ecart!==0&&CFG.alerte){const m=`⚠️ ROYAUM' DES CHAUSSURES - ${longDate(d)}\n${ecart<0?'MANQUANT':'SURPLUS'} de ${fmt(Math.abs(ecart))} à la clôture de ${new Date().toTimeString().slice(0,5)}.\nAttendu : ${fmt(r.attendu)} · Compté : ${fmt(compte)}\nExplication : ${raison}\nClôture faite par : ${par}`;
+      setTimeout(()=>{alert("La caisse n'est pas juste : WhatsApp va s'ouvrir avec le message pour le Directeur. Touchez ENVOYER.");location.href='https://wa.me/'+CFG.alerte+'?text='+encodeURIComponent(m)},600)}
   };
 }
 let reminded=S.get('rappel','');
 setInterval(()=>{if(isDir()||!CFG.mode)return;const d=today();if(lateNow()&&reminded!==d&&!(getDay(d).clotures||[]).length){reminded=d;S.set('rappel',d);toast('20 h 55 : comptez la caisse et faites la clôture',1);if(navigator.vibrate)navigator.vibrate([300,150,300]);if(TAB==='bilan'||TAB==='vendre')go(TAB)}},30000);
 
 /* ================= Échange boutique → Directeur ================= */
-function bundle(){const jours={};S.keys('jour:').forEach(k=>jours[k.slice(5)]=S.get(k));return{app:'rdc',v:1,cree:new Date().toISOString(),cat:CAT,cfg:{vendeuses:CFG.vendeuses,categories:CFG.categories,seuil:CFG.seuil,envoiClient:CFG.envoiClient,envoiCout:CFG.envoiCout},jours}}
+function bundle(){const jours={};S.keys('jour:').forEach(k=>jours[k.slice(5)]=S.get(k));return{app:'rdc',v:1,cree:new Date().toISOString(),cat:CAT,cfg:{vendeuses:CFG.vendeuses,categories:CFG.categories,seuil:CFG.seuil,envoiClient:CFG.envoiClient,envoiCout:CFG.envoiCout,alerte:CFG.alerte},jours}}
 async function exportFile(){
   const name=`RC-Comptes_${today()}_${new Date().toTimeString().slice(0,5).replace(':','h')}.json`;
   const file=new File([JSON.stringify(bundle())],name,{type:'application/json'});
@@ -528,6 +560,75 @@ async function linkImport(raw){
   }catch(e){toast('Lien illisible',1)}
 }
 
+/* ---- Bilan du mois (du 15 au 14) ---- */
+let MP=0;
+function period(off){const t=new Date();let y=t.getFullYear(),m=t.getMonth();if(t.getDate()<15)m--;m+=off;
+  const st=new Date(y,m,15,12),en=new Date(y,m+1,14,12);return{st,en}}
+function vMois(){
+  const {st,en}=period(MP),td=new Date(today()+'T12:00:00'),last=en<td?en:td;
+  const A={ca:0,frais:0,cash:0,om:0,dep:0,rem:0,remVend:0,remPromo:0,nb:0,c:{boutique:0,livraison:0,envoi:0},ven:{},cats:{},marge:0,pub:0,miss:new Set(),ecarts:[],jours:0,actifs:0,sansClo:0};
+  for(let d=new Date(st);d<=last;d.setDate(d.getDate()+1)){
+    const k=d.toLocaleDateString('fr-CA'),r=calc(k);A.jours++;
+    if(r.V.length)A.actifs++;
+    ['ca','frais','cash','om','dep','rem','remVend','remPromo','nb','marge','pub'].forEach(f=>A[f]+=r[f]);
+    Object.keys(r.c).forEach(f=>A.c[f]+=r.c[f]);r.miss.forEach(x=>A.miss.add(x));
+    Object.entries(r.ven).forEach(([n,x])=>{const y=A.ven[n]||(A.ven[n]={n:0,ca:0});y.n+=x.n;y.ca+=x.ca});
+    Object.entries(r.cats).forEach(([n,v])=>A.cats[n]=(A.cats[n]||0)+v);
+    if(r.clo&&r.clo.ecart!==0)A.ecarts.push({d:k,...r.clo});
+    if(r.V.length&&!r.clo&&k!==today())A.sansClo++;
+  }
+  A.fixes=CFG.fixes*A.jours;A.obj=CFG.objectif*A.jours;A.net=A.marge+A.frais-A.dep-A.pub-A.fixes;
+  const lab=x=>x.toLocaleDateString('fr-FR',{day:'numeric',month:'long'});
+  $('app').innerHTML=head(isDir()?(DIR.recu?'Données reçues le '+DIR.recu:''):'')+`
+  <div class="seg" style="grid-template-columns:1fr 1fr;margin-top:10px" id="bv"><button>Jour</button><button class="on">Mois (15 → 14)</button></div>
+  <div class="inl" style="margin-top:10px;align-items:center"><button id="pp">‹</button><div style="flex:1;text-align:center;font-weight:800">Du ${lab(st)} au ${lab(en)}</div><button id="pn" ${MP>=0?'disabled style="opacity:.3"':''}>›</button></div>
+  <div class="tot"><div>Ventes de chaussures du mois</div><div class="big">${fmt(A.ca)}</div><div class="note">${A.nb} articles · ${A.actifs} jour${A.actifs>1?'s':''} de vente sur ${A.jours}${A.frais?' · + '+fmt(A.frais)+' de frais encaissés':''}</div></div>
+  <div class="grid">
+  <div class="cell"><div>Espèces reçues</div><div>${fmt(A.cash)}</div></div>
+  <div class="cell"><div>Orange Money</div><div>${fmt(A.om)}</div></div>
+  <div class="cell"><div>Dépenses</div><div>${fmt(A.dep)}</div></div>
+  <div class="cell"><div>Boutique · Livr. · Envoi</div><div>${A.c.boutique} · ${A.c.livraison} · ${A.c.envoi}</div></div>
+  <div class="cell"><div>Remises vendeuses</div><div>${fmt(A.remVend)}</div></div>
+  <div class="cell"><div>Remises promo</div><div>${fmt(A.remPromo)}</div></div>
+  </div>
+  ${isDir()?`<div style="margin-top:20px;padding:14px;border:2px dashed var(--gold);border-radius:14px"><h2 style="margin-top:0">Résultat du mois <small>· Directeur</small></h2>
+   <div class="grid">
+   <div class="cell"><div>Marge brute</div><div>${fmt(A.marge)}</div></div>
+   <div class="cell"><div>Pub</div><div>${fmt(A.pub)}</div></div>
+   <div class="cell"><div>Dépenses</div><div>${fmt(A.dep)}</div></div>
+   <div class="cell"><div>Charges fixes (${A.jours} j)</div><div>${fmt(A.fixes)}</div></div>
+   <div class="cell ${A.net>=A.obj?'g':'r'}"><div>Bénéfice net</div><div>${fmt(A.net)}</div></div>
+   <div class="cell ${A.net>=A.obj?'g':'r'}"><div>Objectif ${fmt(A.obj)}</div><div>${A.obj?Math.round(A.net/A.obj*100):0} %</div></div>
+   </div>${A.miss.size?`<div class="alert o">Prix d'achat manquant : ${[...A.miss].map(esc).join(', ')}</div>`:''}</div>`:''}
+  <h2>Écarts de caisse du mois</h2>
+  ${A.ecarts.length?A.ecarts.map(x=>`<div class="row"><div class="l"><b>${new Date(x.d+'T12:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})} · ${x.ecart<0?'Manquant':'Surplus'}</b><span>${esc(x.raison||'')} · ${esc(x.par||'')}</span></div><div class="p" style="color:var(--${x.ecart<0?'bad':'warn'})">${fmt(Math.abs(x.ecart))}</div></div>`).join(''):'<div class="empty">Aucun écart ✓</div>'}
+  ${A.sansClo?`<div class="alert o">${A.sansClo} jour${A.sansClo>1?'s':''} avec ventes mais sans clôture de caisse.</div>`:''}
+  <h2>Par vendeuse</h2>
+  ${Object.keys(A.ven).length?Object.entries(A.ven).sort((a,b)=>b[1].ca-a[1].ca).map(([n,x])=>`<div class="row"><div class="l"><b>${esc(n)}</b><span>${x.n} article${x.n>1?'s':''}</span></div><div class="p">${fmt(x.ca)}</div></div>`).join(''):'<div class="empty">—</div>'}
+  <h2>Dépenses par type</h2>
+  ${Object.keys(A.cats).length?Object.entries(A.cats).map(([k,v])=>`<div class="row"><div class="l"><b>${esc(k)}</b></div><div class="p">${fmt(v)}</div></div>`).join(''):'<div class="empty">Aucune dépense.</div>'}
+  <button class="btn" id="cpm">Copier le bilan du mois pour WhatsApp</button>`;
+  $('bv').onclick=e=>{const b=e.target.closest('button');if(b&&!b.classList.contains('on'))vBilan()};
+  $('pp').onclick=()=>{MP--;vMois()};$('pn').onclick=()=>{if(MP<0){MP++;vMois()}};
+  $('cpm').onclick=()=>{let t=`*BILAN DU MOIS - ROYAUM' DES CHAUSSURES*\nDu ${lab(st)} au ${lab(en)}\n\nArticles vendus : ${A.nb}\nVentes de chaussures : ${fmt(A.ca)}\nEspèces : ${fmt(A.cash)} / OM : ${fmt(A.om)}\nDépenses : ${fmt(A.dep)}\nRemises vendeuses : ${fmt(A.remVend)} / promo : ${fmt(A.remPromo)}\nÉcarts de caisse : ${A.ecarts.length?A.ecarts.map(x=>(x.ecart<0?'-':'+')+fmt(Math.abs(x.ecart))).join(', '):'aucun'}`;
+    if(isDir())t+=`\n\nMarge brute : ${fmt(A.marge)}\nPub : ${fmt(A.pub)}\nCharges fixes : ${fmt(A.fixes)}\n*Bénéfice net : ${fmt(A.net)}* (${A.obj?Math.round(A.net/A.obj*100):0} % de l'objectif)`;
+    t+='\n\n*Par vendeuse*\n'+(Object.entries(A.ven).sort((a,b)=>b[1].ca-a[1].ca).map(([n,x])=>`- ${n} : ${x.n} articles, ${fmt(x.ca)}`).join('\n')||'-');copy(t)};
+}
+/* ---- Restauration d'un téléphone de boutique (envoyé par le Directeur) ---- */
+async function restoreLink(){
+  try{const lim=new Date();lim.setDate(lim.getDate()-61);const L=lim.toLocaleDateString('fr-CA');
+    const b=bundle();Object.keys(b.jours).forEach(d=>{if(d<L)delete b.jours[d]});
+    const url=location.origin+location.pathname.replace(/[^/]*$/,'')+'index.html#r='+await pack(b);
+    const txt="Restauration Royaum' des Comptes : sur le NOUVEAU téléphone de la boutique (déjà installé en mode Boutique), touchez ce lien puis tapez le code du Directeur.\n"+url;
+    if(navigator.share){try{await navigator.share({text:txt});return}catch(e){if(e.name==='AbortError')return}}copy(txt)
+  }catch(e){toast('Préparation impossible',1)}
+}
+async function restoreImport(raw){
+  try{const b=await unpack(raw);if(b.app!=='rdc'||!b.jours)throw 0;
+    Object.entries(b.jours).forEach(([d,o])=>S.set('jour:'+d,o));if(b.cat){CAT=b.cat;saveCat()}if(b.cfg){Object.assign(CFG,b.cfg);saveCfg()}
+    toast('Boutique restaurée ✓');go('vendre')}catch(e){toast('Lien illisible',1)}
+}
+
 /* ================= ACHATS (Directeur) ================= */
 function vAchats(){
   $('app').innerHTML=head()+`<h2>Prix d'achat <small>· ce téléphone seulement</small></h2>
@@ -552,18 +653,21 @@ function vReglages(){
   <button class="btn" id="dirok">Enregistrer</button>`:`
   <h2>Envoi province</h2>
   <div class="grid"><div><div class="note">Payé par le client</div><input id="ec" type="number" value="${CFG.envoiClient}"></div><div><div class="note">Coût pour la boutique</div><input id="eo" type="number" value="${CFG.envoiCout}"></div></div>
+  <h2>WhatsApp du Directeur (alertes d'écart)</h2><input id="alt" type="tel" value="${esc(CFG.alerte||'')}"><div class="note">Avec l'indicatif, sans + ni espace : 226…</div>
   <h2>Vendeuses</h2><input id="vds" value="${esc(CFG.vendeuses.join(', '))}"><div class="note">Séparer les noms par des virgules.</div>
   <button class="btn" id="bok">Enregistrer (code Directeur)</button>
   <h2>Sauvegarde</h2>
   <button class="btn ghost" id="exp">Envoyer / sauvegarder toutes les données</button>
   <button class="btn ghost" id="rest">Restaurer une sauvegarde (code Directeur)</button>`}
+  ${isDir()?'<h2>Nouveau téléphone de boutique</h2><div class="note">Si le téléphone de la boutique est perdu ou changé : installez l\'application dessus en mode Boutique, puis envoyez-lui ce lien.</div><button class="btn ghost" id="rest2">Envoyer toutes les données à la boutique</button>':''}
   <h2>Code du Directeur</h2><button class="btn ghost" id="pin">Changer le code</button>
   <p class="note" style="margin-top:24px">Royaum' des Comptes · fonctionne sans connexion. Les données restent dans ce téléphone : envoyez-les chaque soir au Directeur, cela sert aussi de sauvegarde.</p>`;
   $('seuilok').onclick=()=>askPin(()=>{CFG.seuil=Math.max(0,num($('seuil').value));saveCfg();toast('Seuil enregistré')});
   $('pin').onclick=()=>askPin(()=>{const a=prompt('Nouveau code (4 chiffres ou plus) :');if(!a||a.trim().length<4)return toast('Code non changé',1);if(prompt('Répéter le nouveau code :')!==a)return toast('Codes différents',1);CFG.pin=hash(a.trim());saveCfg();toast('Code changé')});
+  if(isDir())$('rest2').onclick=()=>askPin(restoreLink);
   if(isDir())$('dirok').onclick=()=>askPin(()=>{CFG.taux=num($('taux').value)||637;CFG.fixes=num($('fixes').value);CFG.objectif=num($('obj').value)||1;saveCfg();toast('Enregistré')});
   else{
-    $('bok').onclick=()=>askPin(()=>{CFG.envoiClient=num($('ec').value);CFG.envoiCout=num($('eo').value);const v=$('vds').value.split(',').map(s=>s.trim()).filter(Boolean);if(v.length)CFG.vendeuses=v;saveCfg();toast('Réglages enregistrés')});
+    $('bok').onclick=()=>askPin(()=>{CFG.envoiClient=num($('ec').value);CFG.envoiCout=num($('eo').value);const v=$('vds').value.split(',').map(s=>s.trim()).filter(Boolean);if(v.length)CFG.vendeuses=v;CFG.alerte=($('alt').value||'').replace(/\D/g,'');saveCfg();toast('Réglages enregistrés')});
     $('exp').onclick=exportFile;
     $('rest').onclick=()=>askPin(()=>pickFile(b=>{if(b.app!=='rdc'||!b.jours)return toast('Fichier non reconnu',1);if(!confirm('Remplacer toutes les données de ce téléphone par cette sauvegarde ?'))return;
       S.keys('jour:').forEach(k=>localStorage.removeItem('rdc:'+k));Object.entries(b.jours).forEach(([d,o])=>S.set('jour:'+d,o));CAT=b.cat;saveCat();toast('Sauvegarde restaurée ✓');go('vendre')}));
@@ -576,6 +680,11 @@ if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catc
 if(!CFG.mode||!CFG.pin)vSetup();else go(isDir()?'bilan':'vendre');
 /* Chargement des prix d'achat par lien (téléphone du Directeur seulement) */
 function hashImport(){
+if(location.hash.startsWith('#r=')){
+  if(!CFG.mode)return toast("Configurez d'abord ce téléphone en mode Boutique",1);
+  const raw=location.hash.slice(3);history.replaceState(null,'',location.pathname);
+  if(isDir())return toast("Ce lien est pour le téléphone de la boutique",1);
+  setTimeout(()=>askPin(()=>restoreImport(raw)),500);return}
 if(location.hash.startsWith('#d=')){const raw=location.hash.slice(3);history.replaceState(null,'',location.pathname);
   if(isDir())linkImport(raw);else toast("Ce lien s'ouvre sur le téléphone du Directeur",1);return}
 if(location.hash.startsWith('#pa=')){
