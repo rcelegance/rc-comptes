@@ -275,14 +275,27 @@ function voxParse(raw){
   r.items=items;r.m=items[0]&&items[0].m;return r;
 }
 let VOXQ=[],VOXS=null;
+/* ================= LIEN AVEC RC LIVRAISON =================
+   Les livraisons payées (argent remis par le livreur) arrivent ici pour être encaissées. */
+function livList(){let L=[];try{L=(JSON.parse(localStorage.getItem('rcliv_v1'))||{}).livs||[]}catch(e){}
+  const imp=S.get('livImp',{}),lim=Date.now()-7*864e5;
+  return L.filter(l=>l.type==='client'&&(l.statut==='achete'||l.statut==='partiel')&&(l.encaisse||0)>0&&!imp[l.id]&&l.at>lim)}
+function livStart(id){const l=livList().find(x=>x.id===id);if(!l)return;
+  const its=l.items||[{a:l.art,p:l.pt,x:l.m}],kp=l.kp||its.map((x,i)=>i);
+  const items=kp.map(i=>its[i]).filter(Boolean).map(x=>{const m=voxModel(norm(x.a))||CAT.find(c=>norm(c.n)===norm(x.a))||{n:x.a,p:x.x,stock:null,tailles:null,libre:1};return{m,taille:x.p?String(x.p):null,qte:1,prix:x.x}});
+  if(!items.length)return toast('Aucun article gardé par le client',1);
+  VOXS={raw:'Livraison de '+(l.cl||'client')+' · livreur '+(l.livreur||'?'),canal:'livraison',frais:String(l.offert?0:(l.frais||0)),livId:l.id,ctel:l.tel||'',n:items.length,pay:null,vend:null};
+  VOXQ=items.slice(1).map((it,k)=>({it,i:k+1}));voxLoad(items[0],VOXS,0);
+}
 function voxLoad(it,sh,i){
   resetF2();F.m=it.m||null;if(sh.vend){F.vend=sh.vend;S.set('vendeuse',sh.vend)}
   if(F.m){F.prix=F.m.promo||F.m.p||'';if(F.m.tailles&&it.taille&&F.m.tailles[it.taille]>0)F.taille=it.taille}
+  if(it.prix){F.livP=it.prix;F.prix=it.prix}if(sh.livId){F.livId=sh.livId;F.ctel=sh.ctel}
   if(it.qte)F.qte=it.qte;if(sh.pay)F.pay=sh.pay;
   if(sh.canal){F.canal=sh.canal;if(i===0)F.frais=sh.frais||(sh.canal==='envoi'?CFG.envoiClient:'');else{F.frais='0';F.noCout=1}}
   if(i===0&&F.m&&(sh.tel||sh.bonNo))identify(sh.tel||sh.bonNo);
   const miss=[];if(!F.m)miss.push('le modèle');else{if(F.m.tailles&&!F.taille)miss.push(it.taille?'la pointure '+it.taille+' (pas en stock)':'la pointure');if(!base(F.m))miss.push('le prix')}
-  if(!sh.pay)miss.push('le paiement (Espèces par défaut)');if(!F.vend)miss.push('la vendeuse');if(i===0&&sh.canal==='livraison'&&!sh.frais)miss.push('les frais de livraison');
+  if(!sh.pay)miss.push(sh.livId?'le paiement reçu par le livreur (Espèces par défaut)':'le paiement (Espèces par défaut)');if(!F.vend)miss.push('la vendeuse');if(i===0&&sh.canal==='livraison'&&!sh.frais)miss.push('les frais de livraison');
   VOX={raw:sh.raw,miss,i,n:sh.n,nom:F.m?F.m.n:''};vVendre();
 }
 function voxApply(r){const its=r.items&&r.items.length?r.items:[{}];
@@ -307,7 +320,7 @@ function lvlOf(){if(F.lvl)return{lvl:F.lvl,client:F.client,nbP:F.nbP,bonNo:F.bon
 /* un seul avantage par paire : ancien client = toutes ses paires ; nouveau client = toutes sauf la première */
 function avInfo(){
   const m=F.m,L=lvlOf();
-  if(!m||m.promo||m.libre||isAcc(m)||F.libre||F.fam)return{val:0,n:0};
+  if(!m||m.promo||m.libre||isAcc(m)||F.libre||F.fam||F.livP)return{val:0,n:0};
   const val=L&&L.lvl==='vip'?(m.vip||m.bon||0):(m.bon||0);if(!val)return{val:0,n:0};
   return{val,n:L?F.qte:(prevShoes()>0?F.qte:F.qte-1),lvl:L?L.lvl:null};
 }
@@ -327,6 +340,7 @@ function vVendre(){
   if(GRP&&(!gi.length||Date.now()-(GRP.ts||0)>1200000)){GRP=null;S.set('grp',null)}
   $('app').innerHTML=head()+(lateNow()&&!(ld.clotures||[]).length?'<div class="alert o">C\'est l\'heure : allez dans Bilan et comptez la caisse.</div>':'')+
   (GRP?`<div class="alert o">Reçu n° ${recuNo(GRP.no)} en cours : ${gi.length} article${gi.length>1?'s':''} · ${fmt(gi.reduce((a,v)=>a+v.total+(v.frais||0),0))}<br><span style="font-weight:400">Ajoutez l'article suivant du même client, puis envoyez le reçu.</span><button class="btn wa" id="grpEnd">Terminer et envoyer le reçu</button></div>`:'')+`
+  ${(()=>{const L=livList();if(!L.length||F.m)return'';return`<div class="tot" style="margin-top:4px"><div style="font-weight:800">📦 Livraisons payées à encaisser (${L.length})</div>${L.map(l=>`<div class="row"><div class="l"><b>${esc(l.cl||'Client')} · ${fmt((l.encaisse||0))}</b><span>${esc(l.livreur||'')} · ${new Date(l.at).toLocaleDateString('fr-FR')} · ${l.remis?'argent remis ✓':'<span class="rtag r">argent pas encore remis</span>'}</span></div>${l.remis?`<button class="link" data-liv="${l.id}">Encaisser</button>`:'<span class="note" style="margin:0;text-align:right">En attente<br>de l\'argent</span>'}</div>`).join('')}${L.some(l=>!l.remis)?'<div class="note">On encaisse seulement quand l\'argent est dans la main : touchez d\'abord « Argent remis » dans RC Livraison.</div>':''}</div>`})()}
   <button class="btn wa" id="vox" style="margin-top:4px">🎤 Dire la vente</button>
   ${VOX?`<div class="alert ${VOX.miss.length?'r':''}" style="${VOX.miss.length?'':'background:var(--okl);color:var(--ok)'}">« ${esc(VOX.raw)} »<br>${VOX.n>1?'<b>Article '+(VOX.i+1)+' sur '+VOX.n+' : '+esc(VOX.nom)+'</b><br>':''}${VOX.miss.length?'À compléter : '+VOX.miss.join(', '):(VOX.n>1&&VOX.i<VOX.n-1?'Vérifiez puis enregistrez : l\'article suivant viendra tout seul.':'Tout est rempli : vérifiez puis enregistrez.')}</div>`:'<p class="note" style="margin-top:6px">Exemple : « Celio, pointure 42, Orange Money, vendeuse Flora ». Plusieurs modèles : « Nike 41 et Retos 42, Orange, vendeuse Flora ».</p>'}
   <h2>1. Modèle</h2>
@@ -335,6 +349,7 @@ function vVendre(){
   <div id="rest"></div>`;
   if($('grpEnd'))$('grpEnd').onclick=()=>sheetRecu(GRP);
   $('vox').onclick=voxStart;
+  document.querySelectorAll('[data-liv]').forEach(b=>b.onclick=()=>livStart(b.dataset.liv));
   $('q').oninput=renderML;renderML();
   $('ml').onclick=e=>{const b=e.target.closest('button');if(!b)return;
     if(b.dataset.new){F.m={n:$('q').value.trim(),p:0,stock:null,tailles:null,libre:1}}else F.m=CAT.find(x=>x.n===b.dataset.n);
@@ -353,12 +368,12 @@ function renderSale(){
   $('chosen').innerHTML=`<div class="chosen"><span>${esc(m.n)}${badge(m)}</span><button class="link" id="chg">Changer</button></div>`;
   $('chg').onclick=()=>{VOX=null;VOXQ=[];resetF2();vVendre()};
   const sizes=m.tailles?SIZES.filter(t=>t in m.tailles).concat(Object.keys(m.tailles).filter(t=>!SIZES.includes(t))):null;
-  const mob=F.pay!=='especes',fixe=base(m)>0&&!F.libre;
-  if(fixe)F.prix=F.fam?F.fam.prix:base(m);
+  const mob=F.pay!=='especes',fixe=(base(m)>0||F.livP)&&!F.libre;
+  if(fixe)F.prix=F.livP||(F.fam?F.fam.prix:base(m));
   $('rest').innerHTML=`
   ${sizes?`<h2>Pointure</h2><div class="chips" id="sz">${sizes.map(t=>`<button data-t="${t}" class="${F.taille===t?'on':''}" ${m.tailles[t]<=0?'disabled style="opacity:.35"':''}>${t} <small>(${m.tailles[t]})</small></button>`).join('')}</div>`:''}
   <h2>2. Prix ${m.promo?'<small>· PROMO (normal '+fmt(m.p)+')</small>':'<small>· prix fixe</small>'}</h2>
-  ${fixe?`<div class="chosen" style="background:#fff;border-color:var(--line)"><span>${F.fam?`<s style="font-weight:400;color:var(--muted)">${fmt(base(m))}</s> ${fmt(F.fam.prix)}`:fmt(base(m))}</span>${F.fam?'':'<button class="link" id="libre">Autre prix (Directeur)</button>'}</div>`
+  ${fixe&&F.livP?`<div class="chosen" style="background:#fff;border-color:var(--line)"><span>${fmt(F.livP)}</span><span class="note" style="margin:0">prix du bon de livraison</span></div>`:fixe?`<div class="chosen" style="background:#fff;border-color:var(--line)"><span>${F.fam?`<s style="font-weight:400;color:var(--muted)">${fmt(base(m))}</s> ${fmt(F.fam.prix)}`:fmt(base(m))}</span>${F.fam?'':'<button class="link" id="libre">Autre prix (Directeur)</button>'}</div>`
     :`<input id="prix" type="number" inputmode="numeric" value="${F.prix}"><div class="note">${F.libre?'Prix accepté par le Directeur.':'Pas de prix enregistré pour cet article.'}</div>`}
   <div id="avBox"></div>
   <h2>3. Quantité</h2>
@@ -388,14 +403,15 @@ function renderSale(){
 /* ---- encadré « Avantage fidélité » : la vendeuse le montre au client ---- */
 function renderAv(){
   const m=F.m,b=$('avBox');if(!b||!m)return;const a=avInfo(),L=lvlOf();let h='';
-  if(F.fam){h+=`<div class="tot" style="margin-top:10px"><div style="font-weight:800">👨‍👩‍👧 Prix ${esc(F.fam.rel)} accordé par le Directeur</div><div>${esc(F.fam.nom)} · code ${esc(F.fam.c)}</div><div class="note">Prix limite accordé par le Directeur : il ne se négocie pas.</div><button class="link" id="famX">Retirer</button></div>`}
+  if(F.livP){}
+  else if(F.fam){h+=`<div class="tot" style="margin-top:10px"><div style="font-weight:800">👨‍👩‍👧 Prix ${esc(F.fam.rel)} accordé par le Directeur</div><div>${esc(F.fam.nom)} · code ${esc(F.fam.c)}</div><div class="note">Prix limite accordé par le Directeur : il ne se négocie pas.</div><button class="link" id="famX">Retirer</button></div>`}
   else if(!isAcc(m)&&!m.libre&&!F.libre&&base(m))h+=`<div class="chips" id="famB" style="margin-top:0"><button>👨‍👩‍👧 Prix famille / ami (code du Directeur)</button></div>`;
-  if(!F.fam&&!isAcc(m)&&!m.libre&&!F.libre){
+  if(!F.fam&&!F.livP&&!isAcc(m)&&!m.libre&&!F.libre){
     if(L)h+=`<div class="alert" style="background:var(--goldl);color:var(--ink)">${LVL[L.lvl]}${L.lvl==='ami'?' · reçu '+recuNo(L.bonNo):' · '+L.nbP+' paire'+(L.nbP>1?'s':'')+' de 15 000 F ou plus en 1 an'}${L.lvl==='fid'?'<br><span style="font-weight:400">Encore '+(VIP-L.nbP)+' paire'+(VIP-L.nbP>1?'s':'')+' de 15 000 F ou plus pour devenir Client Royal</span>':''}${L.grp?'':' <button class="link" id="lvlX">Retirer</button>'}</div>`;
     else h+=`<div class="chips" id="idB"><button>🎁 Ancien client ou bon d'un ami</button></div>`;
     if(F.bonErr)h+=`<div class="alert r">${esc(F.bonErr)}</div>`;
   }
-  if(F.fam){}
+  if(F.fam||F.livP){}
   else if(m.promo)h+='<div class="note">Prix promo : pas d\'avantage fidélité en plus.</div>';
   else if(!F.libre&&!m.libre&&base(m)&&!isAcc(m)){
     if(!a.val)h+=`<div class="note">Ce modèle est déjà à son prix le plus juste : pas d'avantage fidélité.${L?" L'avantage reste valable sur un autre modèle.":''}</div>`;
@@ -453,11 +469,12 @@ function doSave(){
   const d=today(),o=getDay(d),now=new Date(),id=uid();
   if(!GRP||GRP.d!==d||Date.now()-(GRP.ts||0)>1200000){GRP={id:uid(),no:nextNo(),d}}
   GRP.ts=Date.now();
+  if(F.ctel)GRP.ctel=F.ctel;
   if(F.lvl){GRP.lvl=F.lvl;GRP.client=F.client;GRP.nbP=F.nbP;GRP.bonNo=F.bon?F.bon.no:null}
   const bn=a.n&&GRP.lvl==='ami'?GRP.bonNo:null;
   const v={id,ts:Date.now(),heure:now.toTimeString().slice(0,5),modele:m.n,taille:F.taille,prixNormal:m.p||p,prixPromo:m.promo||null,apresCloture:!!(o.clotures&&o.clotures.length),prixVendu:p,qte:F.qte,total:t,frais:fr,
     om:F.pay==='om'?mob:0,moov:F.pay==='moov'?mob:0,wave:F.pay==='wave'?mob:0,especes:enc-mob,paiement:F.pay,mixte:isSplit(),canal:F.canal,vendeuse:F.vend,grp:GRP.id,recuNo:GRP.no,recu:null,
-    fam:F.fam?{c:F.fam.c,nom:F.fam.nom,rel:F.fam.rel}:null,acc:isAcc(m)?1:0,av:a.n?{val:a.val,n:a.n,lvl:a.lvl,client:GRP.client||null,bonNo:bn,mode:F.mode,cadeau:F.mode==='cadeau'?F.cadeau:null,remise:avR}:null,force:F.libre&&p!==base(m)?1:0};
+    fam:F.fam?{c:F.fam.c,nom:F.fam.nom,rel:F.fam.rel}:null,liv:F.livId||null,acc:isAcc(m)?1:0,av:a.n?{val:a.val,n:a.n,lvl:a.lvl,client:GRP.client||null,bonNo:bn,mode:F.mode,cadeau:F.mode==='cadeau'?F.cadeau:null,remise:avR}:null,force:F.libre&&p!==base(m)?1:0};
   o.ventes.push(v);
   if(F.canal==='envoi'&&CFG.envoiCout>0&&!F.noCout)o.depenses.push({id:uid(),ts:v.ts,heure:v.heure,cat:'Envoi province',motif:'Envoi '+m.n,montant:CFG.envoiCout,lien:id});
   if(!putDay(d,o))return;
@@ -469,6 +486,7 @@ function doSave(){
   if(navigator.vibrate)navigator.vibrate(60);
   const after=m.libre?null:total(CAT.find(x=>x.n===m.n));
   toast(after!==null&&after!==undefined&&after<=CFG.seuil?`Vente enregistrée ✓ — attention, il reste ${Math.max(after,0)} ${m.n}`:'Vente enregistrée ✓',after!==null&&after!==undefined&&after<=0);
+  if(F.livId&&!VOXQ.length){const I=S.get('livImp',{});I[F.livId]=d;S.set('livImp',I)}
   if(VOXQ.length){const q=VOXQ.shift();voxLoad(q.it,VOXS,q.i);toast('Article '+(q.i+1)+' sur '+VOXS.n+' : vérifiez puis enregistrez');return}
   VOX=null;resetF2();vVendre();sheetRecu(GRP);
 }
@@ -523,7 +541,7 @@ function sheetRecu(g){
   sheet(`<h2 style="margin-top:0">Reçu n° ${recuNo(g.no)} · ${fmt(tot)}</h2>
   <div class="recu">${items.map(v=>`<div class="row"><div class="l"><b>${v.qte} × ${esc(v.modele)}${v.taille?' (P.'+esc(v.taille)+')':''}</b><span>${payLab(v)}${v.frais?' · + '+fmt(v.frais)+' de frais':''}</span></div><div class="p">${fmt(v.total)}</div></div>`).join('')}</div>
   <h2>Numéro WhatsApp du client</h2>
-  <input id="rtel" type="tel" inputmode="tel" placeholder="Ex : 70 12 34 56" autocomplete="off" ${lock?`value="${g.client.slice(3)}" readonly`:''}>
+  <input id="rtel" type="tel" inputmode="tel" placeholder="Ex : 70 12 34 56" autocomplete="off" ${lock?`value="${g.client.slice(3)}" readonly`:g.ctel?`value="${esc(g.ctel)}"`:''}>
   ${lock?'<div class="note">Avantage fidélité : le reçu part obligatoirement au numéro du client.</div>':''}
   <button class="btn wa" id="rsend">Envoyer le reçu sur WhatsApp</button>
   <button class="btn ghost" id="rsms">Pas de WhatsApp : envoyer par SMS</button>
@@ -793,7 +811,7 @@ function vBilan(){
   ${r.dons.length?`<h2>Dons du Directeur · ${r.donN} paire${r.donN>1?'s':''}</h2><div id="dl2">${r.dons.map(x=>`<div class="row"><div class="l"><b>🎁 ${esc(x.modele)}${x.taille?' ('+esc(x.taille)+')':''}${x.qte>1?' ×'+x.qte:''} · ${esc(x.benef)}</b><span>${x.heure} · ${esc(x.motif)} · remis par ${esc(x.par)} · ${x.auth==='lien'?'autorisé par lien':'code du Directeur'}</span></div>${isDir()&&DIR.pa[x.modele]?`<div class="p">${fmt(DIR.pa[x.modele]*x.qte)}</div>`:''}${isDir()?'':`<button class="x" data-id="${x.id}">×</button>`}</div>`).join('')}</div>`:''}
   ${(getDay(BD).arrivages||[]).length?`<h2>Arrivages du jour</h2>${getDay(BD).arrivages.map(a=>`<div class="row"><div class="l"><b>${esc(a.modele)} · ${a.qte} paire${a.qte>1?'s':''}</b><span>${a.heure} · ${a.detail?Object.entries(a.detail).map(([s,v])=>v+'×'+s).join(' '):'sans pointures'} · par ${esc(a.par)}${a.livreur?' · livré par '+esc(a.livreur):''}</span></div></div>`).join('')}`:''}
   <h2>Ventes du jour</h2>
-  <div id="vl">${r.V.length?r.V.map((v,i)=>`<div class="row"><div class="l"><b>${i+1}. ${esc(v.modele)}${v.taille?' ('+esc(v.taille)+')':''}${v.qte>1?' ×'+v.qte:''}</b><span>${v.heure} · ${payLab(v)} · ${LAB[v.canal]}${v.frais?' +'+fmt(v.frais):''} · ${esc(v.vendeuse)}${v.recuNo?' · reçu '+recuNo(v.recuNo):''}${v.av?' · '+({vip:'👑 ',fid:'⭐ ',ami:'🤝 '}[v.av.lvl]||'🎁 ')+(v.av.mode==='remise'?'fidélité −'+fmt(v.av.remise):'cadeau '+esc(v.av.cadeau)+(v.av.n>1?' ×'+v.av.n:''))+(v.av.bonNo?' (bon '+recuNo(v.av.bonNo)+')':''):''}${v.force?' · prix changé par le Directeur':''}${v.fam?' · 👨‍👩‍👧 prix '+esc(v.fam.rel)+' ('+esc(v.fam.nom)+')':''} ${recuTag(v)}</span></div><div class="p">${fmt(v.total)}${v.prixVendu<v.prixNormal?`<s>${fmt(v.prixNormal*v.qte)}</s>`:''}</div>${isDir()?'':`<button class="x" data-id="${v.id}">×</button>`}</div>`).join(''):'<div class="empty">Aucune vente ce jour-là.</div>'}</div>
+  <div id="vl">${r.V.length?r.V.map((v,i)=>`<div class="row"><div class="l"><b>${i+1}. ${esc(v.modele)}${v.taille?' ('+esc(v.taille)+')':''}${v.qte>1?' ×'+v.qte:''}</b><span>${v.heure} · ${payLab(v)} · ${LAB[v.canal]}${v.frais?' +'+fmt(v.frais):''} · ${esc(v.vendeuse)}${v.recuNo?' · reçu '+recuNo(v.recuNo):''}${v.av?' · '+({vip:'👑 ',fid:'⭐ ',ami:'🤝 '}[v.av.lvl]||'🎁 ')+(v.av.mode==='remise'?'fidélité −'+fmt(v.av.remise):'cadeau '+esc(v.av.cadeau)+(v.av.n>1?' ×'+v.av.n:''))+(v.av.bonNo?' (bon '+recuNo(v.av.bonNo)+')':''):''}${v.force?' · prix changé par le Directeur':''}${v.fam?' · 👨‍👩‍👧 prix '+esc(v.fam.rel)+' ('+esc(v.fam.nom)+')':''}${v.liv?' · 📦 bon de livraison':''} ${recuTag(v)}</span></div><div class="p">${fmt(v.total)}${v.prixVendu<v.prixNormal?`<s>${fmt(v.prixNormal*v.qte)}</s>`:''}</div>${isDir()?'':`<button class="x" data-id="${v.id}">×</button>`}</div>`).join(''):'<div class="empty">Aucune vente ce jour-là.</div>'}</div>
   <h2>Par vendeuse</h2>
   ${Object.keys(r.ven).length?Object.entries(r.ven).sort((a,b)=>b[1].ca-a[1].ca).map(([n,x])=>`<div class="row"><div class="l"><b>${esc(n)}</b><span>${x.n} article${x.n>1?'s':''}</span></div><div class="p">${fmt(x.ca)}</div></div>`).join(''):'<div class="empty">—</div>'}
   ${isDir()?'':'<button class="btn gold" id="send">Envoyer les données au Directeur</button>'}`;
@@ -811,6 +829,7 @@ function vBilan(){
     $('vl').onclick=e=>{const b=e.target.closest('.x');if(!b)return;const o=getDay(BD),v=o.ventes.find(x=>x.id===b.dataset.id);
       if(!v)return;guard(v,o,()=>{if(!confirm(`Supprimer la vente « ${v.modele} » à ${fmt(v.total)} ? Le stock sera remis.`))return;
       logSupp(o,'vente',v);o.ventes=o.ventes.filter(x=>x.id!==v.id);o.depenses=o.depenses.filter(x=>x.lien!==v.id);putDay(BD,o);
+      if(v.liv){const I=S.get('livImp',{});delete I[v.liv];S.set('livImp',I)}
       if(v.fam){const A=S.get('fam',{});if(A[v.fam.c]){A[v.fam.c].used=Math.max(0,A[v.fam.c].used-v.qte);S.set('fam',A)}}
       if(v.av&&v.av.bonNo){const U=S.get('bons',{});delete U[v.av.bonNo];S.set('bons',U)}if(v.av&&v.av.cadeau)moveStock(v.av.cadeau,null,v.av.n);
       if(CAT.some(m=>m.n===v.modele))moveStock(v.modele,v.taille,v.qte);toast('Vente supprimée, stock remis');vBilan()})};
