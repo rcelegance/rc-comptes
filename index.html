@@ -236,6 +236,68 @@ function nextNo(){const n=S.get('recuNo',0)+1;S.set('recuNo',n);return n}
 const recuNo=n=>String(n).padStart(4,'0');
 function grpItems(g){return getDay(g.d).ventes.filter(v=>v.grp===g.id)}
 
+/* ================= SAISIE VOCALE =================
+   La voix remplit le formulaire ; ce qui manque s'affiche en rouge ; la vendeuse valide toujours. */
+let VOX=null;
+const NB={un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6};
+const PT={'trente-cinq':35,'trente-six':36,'trente-sept':37,'trente-huit':38,'trente-neuf':39,'quarante':40,'quarante et un':41,'quarante-et-un':41,'quarante-deux':42,'quarante-trois':43,'quarante-quatre':44,'quarante-cinq':45,'quarante-six':46,'quarante-sept':47,'quarante-huit':48};
+function lev(a,b){if(Math.abs(a.length-b.length)>2)return 9;const d=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){let p=d[0];d[0]=i;for(let j=1;j<=b.length;j++){const t=d[j];d[j]=Math.min(d[j]+1,d[j-1]+1,p+(a[i-1]===b[j-1]?0:1));p=t}}return d[b.length]}
+function voxModel(t){
+  const W0=t.split(/[^a-z0-9+]+/).filter(Boolean),W=W0.concat(W0.slice(1).map((w,i)=>W0[i]+w));let best=null,bs=0;
+  CAT.forEach(m=>{const mw=norm(m.n).split(/[^a-z0-9+]+/).filter(Boolean);if(!mw.length)return;
+    let ok=0;mw.forEach(w=>{if(W.some(x=>x===w||(w.length>=4&&lev(x,w)<=(w.length>=7?2:1))))ok++});
+    const sc=ok/mw.length+(ok===mw.length?mw.length*0.1:0);if(sc>bs){bs=sc;best=m}});
+  return bs>=0.99?best:null;
+}
+/* un article : modèle + pointure + quantité */
+function voxItem(seg){const r={m:voxModel(seg)};let x;
+  if((x=seg.match(/(?:pointure|taille|numero|point)\s*(\d{2})/)))r.taille=x[1];
+  else if((x=seg.match(/\b(3[5-9]|4[0-8])\b/)))r.taille=x[1];
+  if((x=seg.match(/\b(\d|un|une|deux|trois|quatre|cinq|six)\s*paires?\b/)))r.qte=+x[1]||NB[x[1]];
+  else if((x=seg.match(/quantite\s*(\d|un|une|deux|trois|quatre|cinq|six)\b/)))r.qte=+x[1]||NB[x[1]];
+  return r}
+/* une phrase peut contenir plusieurs modèles : « Nike 41 et Retos 42, Orange, vendeuse Flora » */
+function voxParse(raw){
+  let t=norm(raw).replace(/[,.;:!?]/g,' ');Object.entries(PT).sort((x,y)=>y[0].length-x[0].length).forEach(([k,v])=>{t=t.split(k).join(String(v))});
+  const r={raw};let x;
+  if(/orange/.test(t))r.pay='om';else if(/\b(moov|mouv|move|mov)\b/.test(t))r.pay='moov';else if(/\b(wave|wav|ouave|ouève|ouev|waive)\b/.test(t))r.pay='wave';else if(/(espece|cash|liquide)/.test(t))r.pay='especes';
+  if(/livraison|livrer/.test(t))r.canal='livraison';else if(/envoi|province|gare/.test(t))r.canal='envoi';
+  if((x=t.match(/frais\s*(?:de\s*)?(\d[\d ]{2,5})/)))r.frais=x[1].replace(/\s/g,'');
+  r.vend=CFG.vendeuses.find(n=>t.includes(norm(n)))||null;
+  const dg=t.replace(/(\d)\s+(?=\d)/g,'$1');
+  if((x=dg.match(/(?:client|numero|whatsapp)\D{0,12}(\d{8})/)))r.tel=x[1];
+  else if((x=dg.match(/(?:bon|recu)\D{0,6}(\d{1,5})\b/)))r.bonNo=x[1];
+  /* on retire le numéro du client et les frais pour ne pas les prendre pour une pointure */
+  const body=t.replace(/(client|numero|whatsapp)[\d\s]+/g,' ').replace(/frais\s*(de\s*)?[\d\s]+/g,' ');
+  const multi=body.replace(/^\s*(\d|un|une|deux|trois|quatre|cinq|six)\s*paires?\s*(de\s*)?/,'');
+  let items=multi.split(/\s(?:et|puis|plus|ensuite|avec)\s/).map(voxItem).filter(i=>i.m);
+  if(items.length<=1)items=[voxItem(body)];
+  r.items=items;r.m=items[0]&&items[0].m;return r;
+}
+let VOXQ=[],VOXS=null;
+function voxLoad(it,sh,i){
+  resetF2();F.m=it.m||null;if(sh.vend){F.vend=sh.vend;S.set('vendeuse',sh.vend)}
+  if(F.m){F.prix=F.m.promo||F.m.p||'';if(F.m.tailles&&it.taille&&F.m.tailles[it.taille]>0)F.taille=it.taille}
+  if(it.qte)F.qte=it.qte;if(sh.pay)F.pay=sh.pay;
+  if(sh.canal){F.canal=sh.canal;if(i===0)F.frais=sh.frais||(sh.canal==='envoi'?CFG.envoiClient:'');else{F.frais='0';F.noCout=1}}
+  if(i===0&&F.m&&(sh.tel||sh.bonNo))identify(sh.tel||sh.bonNo);
+  const miss=[];if(!F.m)miss.push('le modèle');else{if(F.m.tailles&&!F.taille)miss.push(it.taille?'la pointure '+it.taille+' (pas en stock)':'la pointure');if(!base(F.m))miss.push('le prix')}
+  if(!sh.pay)miss.push('le paiement (Espèces par défaut)');if(!F.vend)miss.push('la vendeuse');if(i===0&&sh.canal==='livraison'&&!sh.frais)miss.push('les frais de livraison');
+  VOX={raw:sh.raw,miss,i,n:sh.n,nom:F.m?F.m.n:''};vVendre();
+}
+function voxApply(r){const its=r.items&&r.items.length?r.items:[{}];
+  VOXS={...r,n:its.length};VOXQ=its.slice(1).map((it,k)=>({it,i:k+1}));voxLoad(its[0],VOXS,0)}
+function voxStart(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return toast("La saisie vocale n'est pas disponible sur ce téléphone : utilisez Chrome",1);
+  const b=$('vox'),rec=new SR();rec.lang='fr-FR';rec.interimResults=false;rec.maxAlternatives=4;
+  b.textContent='🔴 J\'écoute… parlez maintenant';b.disabled=true;
+  rec.onresult=e=>{const alts=[...e.results[0]].map(a=>a.transcript);let r=null;
+    for(const a of alts){const p=voxParse(a);if(p.m){r=p;break}}voxApply(r||voxParse(alts[0]||''))};
+  rec.onerror=e=>{toast(e.error==='no-speech'?"Je n'ai rien entendu : réessayez":e.error==='network'?'Il faut internet pour la saisie vocale':'Micro non disponible : autorisez le micro',1)};
+  rec.onend=()=>{if($('vox')){$('vox').textContent='🎤 Dire la vente';$('vox').disabled=false}};
+  try{rec.start()}catch(e){toast('Micro non disponible',1)}
+}
 /* ================= VENDRE ================= */
 let F=null;const resetF=()=>{F={m:null,prix:'',qte:1,pay:'especes',split:false,om:'',canal:'boutique',taille:null,frais:'',bon:null,bonErr:'',fam:null,lvl:null,client:null,nbP:0,mode:'remise',cadeau:null,libre:false,vend:S.get('vendeuse',null)}};resetF();
 function prevShoes(){return GRP?grpItems(GRP).filter(v=>!v.acc).reduce((a,v)=>a+v.qte,0):0}
@@ -265,11 +327,14 @@ function vVendre(){
   if(GRP&&(!gi.length||Date.now()-(GRP.ts||0)>1200000)){GRP=null;S.set('grp',null)}
   $('app').innerHTML=head()+(lateNow()&&!(ld.clotures||[]).length?'<div class="alert o">C\'est l\'heure : allez dans Bilan et comptez la caisse.</div>':'')+
   (GRP?`<div class="alert o">Reçu n° ${recuNo(GRP.no)} en cours : ${gi.length} article${gi.length>1?'s':''} · ${fmt(gi.reduce((a,v)=>a+v.total+(v.frais||0),0))}<br><span style="font-weight:400">Ajoutez l'article suivant du même client, puis envoyez le reçu.</span><button class="btn wa" id="grpEnd">Terminer et envoyer le reçu</button></div>`:'')+`
+  <button class="btn wa" id="vox" style="margin-top:4px">🎤 Dire la vente</button>
+  ${VOX?`<div class="alert ${VOX.miss.length?'r':''}" style="${VOX.miss.length?'':'background:var(--okl);color:var(--ok)'}">« ${esc(VOX.raw)} »<br>${VOX.n>1?'<b>Article '+(VOX.i+1)+' sur '+VOX.n+' : '+esc(VOX.nom)+'</b><br>':''}${VOX.miss.length?'À compléter : '+VOX.miss.join(', '):(VOX.n>1&&VOX.i<VOX.n-1?'Vérifiez puis enregistrez : l\'article suivant viendra tout seul.':'Tout est rempli : vérifiez puis enregistrez.')}</div>`:'<p class="note" style="margin-top:6px">Exemple : « Celio, pointure 42, Orange Money, vendeuse Flora ». Plusieurs modèles : « Nike 41 et Retos 42, Orange, vendeuse Flora ».</p>'}
   <h2>1. Modèle</h2>
   <div id="pick"><input id="q" type="search" placeholder="Taper : nike, retos…" autocomplete="off"><div class="list" id="ml"></div></div>
   <div id="chosen"></div>
   <div id="rest"></div>`;
   if($('grpEnd'))$('grpEnd').onclick=()=>sheetRecu(GRP);
+  $('vox').onclick=voxStart;
   $('q').oninput=renderML;renderML();
   $('ml').onclick=e=>{const b=e.target.closest('button');if(!b)return;
     if(b.dataset.new){F.m={n:$('q').value.trim(),p:0,stock:null,tailles:null,libre:1}}else F.m=CAT.find(x=>x.n===b.dataset.n);
@@ -286,7 +351,7 @@ function renderML(){
 function renderSale(){
   const m=F.m;$('pick').hidden=true;
   $('chosen').innerHTML=`<div class="chosen"><span>${esc(m.n)}${badge(m)}</span><button class="link" id="chg">Changer</button></div>`;
-  $('chg').onclick=()=>{resetF2();vVendre()};
+  $('chg').onclick=()=>{VOX=null;VOXQ=[];resetF2();vVendre()};
   const sizes=m.tailles?SIZES.filter(t=>t in m.tailles).concat(Object.keys(m.tailles).filter(t=>!SIZES.includes(t))):null;
   const mob=F.pay!=='especes',fixe=base(m)>0&&!F.libre;
   if(fixe)F.prix=F.fam?F.fam.prix:base(m);
@@ -394,7 +459,7 @@ function doSave(){
     om:F.pay==='om'?mob:0,moov:F.pay==='moov'?mob:0,wave:F.pay==='wave'?mob:0,especes:enc-mob,paiement:F.pay,mixte:isSplit(),canal:F.canal,vendeuse:F.vend,grp:GRP.id,recuNo:GRP.no,recu:null,
     fam:F.fam?{c:F.fam.c,nom:F.fam.nom,rel:F.fam.rel}:null,acc:isAcc(m)?1:0,av:a.n?{val:a.val,n:a.n,lvl:a.lvl,client:GRP.client||null,bonNo:bn,mode:F.mode,cadeau:F.mode==='cadeau'?F.cadeau:null,remise:avR}:null,force:F.libre&&p!==base(m)?1:0};
   o.ventes.push(v);
-  if(F.canal==='envoi'&&CFG.envoiCout>0)o.depenses.push({id:uid(),ts:v.ts,heure:v.heure,cat:'Envoi province',motif:'Envoi '+m.n,montant:CFG.envoiCout,lien:id});
+  if(F.canal==='envoi'&&CFG.envoiCout>0&&!F.noCout)o.depenses.push({id:uid(),ts:v.ts,heure:v.heure,cat:'Envoi province',motif:'Envoi '+m.n,montant:CFG.envoiCout,lien:id});
   if(!putDay(d,o))return;
   S.set('grp',GRP);
   if(bn){const U=S.get('bons',{});if(!U[bn]){U[bn]={d,heure:v.heure,modele:m.n};S.set('bons',U)}}
@@ -404,7 +469,8 @@ function doSave(){
   if(navigator.vibrate)navigator.vibrate(60);
   const after=m.libre?null:total(CAT.find(x=>x.n===m.n));
   toast(after!==null&&after!==undefined&&after<=CFG.seuil?`Vente enregistrée ✓ — attention, il reste ${Math.max(after,0)} ${m.n}`:'Vente enregistrée ✓',after!==null&&after!==undefined&&after<=0);
-  resetF2();vVendre();sheetRecu(GRP);
+  if(VOXQ.length){const q=VOXQ.shift();voxLoad(q.it,VOXS,q.i);toast('Article '+(q.i+1)+' sur '+VOXS.n+' : vérifiez puis enregistrez');return}
+  VOX=null;resetF2();vVendre();sheetRecu(GRP);
 }
 
 /* ================= REÇU WHATSAPP ================= */
@@ -942,7 +1008,7 @@ function vAchats(){
   const g=grille(),G=Object.entries(g).sort((a,b)=>a[0].localeCompare(b[0],'fr'));
   $('al').insertAdjacentHTML('afterend',`<h2>Avantages fidélité <small>· calculés sur vos prix d'achat</small></h2>
   <p class="note">Prix fixe pour une paire. Un seul avantage par paire, et le gain ne descend jamais sous 4 000 F. Client fidèle, bon d'un ami ou paire en plus : 500 F dès 4 500 F de gain, 1 000 F dès 5 500 F, 1 500 F dès 6 500 F, 2 000 F dès 7 500 F. Client Royal (4 paires de 15 000 F ou plus en 1 an) : gain − 4 000 F, jusqu'à 3 000 F.</p>
-  ${G.length?G.map(([n,[vp,bn]])=>{const m=CAT.find(x=>x.n===n);return`<div class="row"><div class="l"><b>${esc(n)}</b><span>gain ${fmt(m.p-DIR.pa[n])}</span></div><div class="p">${bn?'−'+fmt(bn):'aucun'}<s>Royal ${vp?'−'+fmt(vp):'aucun'}</s></div></div>`}).join(''):'<div class="empty">Remplissez les prix d\'achat pour calculer la grille.</div>'}
+  ${G.length?G.map(([n,[vp,bn]])=>{const m=CAT.find(x=>x.n===n);return`<div class="row"><div class="l"><b>${esc(n)}</b><span>gain ${fmt(m.p-DIR.pa[n])}</span></div><div class="p">${bn?'−'+fmt(bn):'aucun'}<span style="display:block;font-weight:400;font-size:.8rem;color:var(--muted)">Royal ${vp?'−'+fmt(vp):'aucun'}</span></div></div>`}).join(''):'<div class="empty">Remplissez les prix d\'achat pour calculer la grille.</div>'}
   <button class="btn gold" id="gsend">Envoyer la grille à la boutique</button>
   <p class="note">À refaire après chaque changement de prix de vente ou de prix d'achat.</p>`);
   $('gsend').onclick=()=>askPin(sendGrille);
