@@ -379,7 +379,7 @@ function vVendre(){
   const ld=getDay(today());
   const gi=GRP?grpItems(GRP):[];
   if(GRP&&(!gi.length||Date.now()-(GRP.ts||0)>1200000)){GRP=null;S.set('grp',null)}
-  $('app').innerHTML=head()+(lateNow()&&!(ld.clotures||[]).length?'<div class="alert o">C\'est l\'heure : allez dans Bilan et comptez la caisse.</div>':'')+
+  $('app').innerHTML=head()+(lateNow()&&!(ld.clotures||[]).length?'<div class="alert o">C\'est l\'heure : allez dans Bilan et comptez la caisse.</div>':'')+rappelEnvoi()+
   (GRP?`<div class="alert o">Reçu n° ${recuNo(GRP.no)} en cours : ${gi.length} article${gi.length>1?'s':''} · ${fmt(gi.reduce((a,v)=>a+v.total+(v.frais||0),0))}<br><span style="font-weight:400">Ajoutez l'article suivant du même client, puis envoyez le reçu.</span><button class="btn wa" id="grpEnd">Terminer et envoyer le reçu</button></div>`:'')+`
   ${(()=>{const L=livList();if(!L.length||F.m)return'';return`<div class="tot" style="margin-top:4px"><div style="font-weight:800">📦 Livraisons payées à encaisser (${L.length})</div>${L.map(l=>`<div class="row"><div class="l"><b>${esc(l.cl||'Client')} · ${fmt((l.encaisse||0))}</b><span>${esc(l.livreur||'')} · ${new Date(l.at).toLocaleDateString('fr-FR')} · ${l.remis?'argent remis ✓':'<span class="rtag r">argent pas encore remis</span>'}</span></div>${l.remis?`<button class="link" data-liv="${l.id}">Encaisser</button>`:'<span class="note" style="margin:0;text-align:right">En attente<br>de l\'argent</span>'}</div>`).join('')}${L.some(l=>!l.remis)?'<div class="note">On encaisse seulement quand l\'argent est dans la main : touchez d\'abord « Argent remis » dans RC Livraison.</div>':''}</div>`})()}
   <button class="btn wa" id="vox" style="margin-top:4px">🎤 Dire la vente</button>
@@ -395,8 +395,11 @@ function vVendre(){
   $('ml').onclick=e=>{const b=e.target.closest('button');if(!b)return;
     if(b.dataset.new){F.m={n:$('q').value.trim(),p:0,stock:null,tailles:null,libre:1}}else F.m=CAT.find(x=>x.n===b.dataset.n);
     F.prix=F.m.promo||F.m.p||'';F.taille=null;renderSale()};
+  if($('rapE'))$('rapE').onclick=()=>sendLink(false);
   if(F.m)renderSale();updSave();setTimeout(pendingImg,300);
 }
+function rappelEnvoi(){if(isDir()||S.get('envoyeLe',null)===today()||new Date().getHours()<21||!getDay(today()).ventes.length)return'';
+  return`<div class="alert r">📤 Les données d'aujourd'hui ne sont pas encore envoyées au Directeur.<button class="btn gold" id="rapE" style="margin-top:8px">Envoyer maintenant</button></div>`}
 function renderML(){
   const q=norm($('q').value.trim());
   const it=CAT.filter(m=>!q||norm(m.n).includes(q)).sort((a,b)=>a.n.localeCompare(b.n,'fr'));
@@ -697,7 +700,14 @@ function sheetImg(p){
     toast("Image enregistrée : envoyez-la au client depuis la galerie",1)};
   $('iok').onclick=()=>{S.set('recuImg',null);closeModal()};
 }
-function pendingImg(){const p=S.get('recuImg',null);if(p&&!isDir()&&!$('modal').innerHTML)sheetImg(p)}
+/* Après la clôture : l'envoi au Directeur s'affiche tout seul, jusqu'à ce qu'il soit fait */
+function sheetEnvoi(){if(isDir()||$('modal').innerHTML)return;const d=S.get('aEnvoyer',null);if(!d)return;
+  sheet(`<h2 style="margin-top:0">Dernière étape de la journée</h2>
+  <p>Envoyez les données ${d===today()?"d'aujourd'hui":'du '+shortDate(d)} au Directeur.</p>
+  <button class="btn gold" id="eok">📤 Envoyer au Directeur</button><button class="btn ghost" id="eno">Plus tard</button>
+  <p class="note">Touchez le bouton, choisissez WhatsApp, puis le Directeur, et ENVOYER.</p>`,1);
+  $('eok').onclick=()=>{closeModal();sendLink(false,d)};$('eno').onclick=closeModal}
+function pendingImg(){if(isDir()||$('modal').innerHTML)return;const p=S.get('recuImg',null);if(p)sheetImg(p);else sheetEnvoi()}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(pendingImg,400)});
 /* ---- verrou : 1 heure après la saisie, ou après la clôture, il faut le code ---- */
 function guard(item,day,then){
@@ -929,7 +939,7 @@ const LAB={especes:'Espèces',om:'OM',mixte:'Espèces + OM',boutique:'Boutique',
 function vBilan(){
   const r=calc(BD),closed=BD===today()&&new Date().getHours()>=21;
   $('app').innerHTML=head(isDir()?(DIR.recu?'Données reçues le '+DIR.recu:'Aucune donnée reçue de la boutique'):'')+`
-  ${isDir()?'<button class="btn gold" id="imp" style="margin-top:0">Recevoir un fichier de la boutique</button><p class="note" style="margin-top:6px">Le plus simple : touchez le lien envoyé chaque soir par la boutique sur WhatsApp.</p>':''}
+  ${isDir()?'<p class="note" style="margin-top:0">Le plus simple : touchez le lien envoyé chaque soir par la boutique sur WhatsApp.</p><button class="btn gold" id="col" style="margin-top:6px">Coller le message de la boutique</button><button class="btn ghost" id="imp">Recevoir un fichier de la boutique</button>':''}
   <div class="seg" style="grid-template-columns:1fr 1fr;margin-top:10px" id="bv"><button class="on">Jour</button><button data-m="1">Mois (15 → 14)</button></div>
   <input id="bd" type="date" value="${BD}" style="margin-top:10px">
   ${!isDir()&&BD===today()&&!r.clo&&lateNow()?'<div class="alert o">C\'est l\'heure : comptez la caisse et faites la clôture.</div>':closed&&r.clo?'<div class="alert k">Journée clôturée à '+r.clo.heure+'.</div>':''}
@@ -979,14 +989,14 @@ function vBilan(){
   <div id="vl">${r.V.length?r.V.map((v,i)=>`<div class="row"><div class="l"><b>${i+1}. ${esc(v.modele)}${v.taille?' ('+esc(v.taille)+')':''}${v.qte>1?' ×'+v.qte:''}</b><span>${v.heure} · ${payLab(v)} · ${LAB[v.canal]}${v.frais?' +'+fmt(v.frais):''} · ${esc(v.vendeuse)}${v.recuNo?' · reçu '+recuNo(v.recuNo):''}${v.av?' · '+({vip:'👑 ',fid:'⭐ ',ami:'🤝 '}[v.av.lvl]||'🎁 ')+(v.av.mode==='remise'?'fidélité −'+fmt(v.av.remise):'cadeau '+esc(v.av.cadeau)+(v.av.n>1?' ×'+v.av.n:''))+(v.av.bonNo?' (bon '+recuNo(v.av.bonNo)+')':''):''}${v.retro?' · remise autre paire −'+fmt(v.retro):''}${v.force?' · prix changé par le Directeur':''}${v.fam?' · 👨‍👩‍👧 prix '+esc(v.fam.rel)+' ('+esc(v.fam.nom)+')':''}${v.liv?' · 📦 bon de livraison':''}${v.aValider?' <span class="rtag r">prix à valider</span>':''} ${recuTag(v)}</span></div><div class="p">${fmt(v.total)}${v.prixVendu<v.prixNormal?`<s>${fmt(v.prixNormal*v.qte)}</s>`:''}</div>${isDir()?'':`<button class="x" data-id="${v.id}">×</button>`}</div>`).join(''):'<div class="empty">Aucune vente ce jour-là.</div>'}</div>
   <h2>Par vendeuse</h2>
   ${Object.keys(r.ven).length?Object.entries(r.ven).sort((a,b)=>b[1].ca-a[1].ca).map(([n,x])=>`<div class="row"><div class="l"><b>${esc(n)}</b><span>${x.n} article${x.n>1?'s':''}</span></div><div class="p">${fmt(x.ca)}</div></div>`).join(''):'<div class="empty">—</div>'}
-  ${isDir()?'':'<button class="btn gold" id="send">Envoyer les données au Directeur</button>'}`;
+  ${isDir()?'':'<button class="btn gold" id="send">'+(BD===today()?'Envoyer les données au Directeur':'Envoyer le bilan du '+shortDate(BD)+' au Directeur')+'</button><button class="link" id="sendAll" style="display:block;margin:8px auto">Tout renvoyer (14 derniers jours)</button>'}`;
   $('bd').onchange=()=>{BD=$('bd').value||today();vBilan()};
   $('bv').onclick=e=>{const b=e.target.closest('button');if(b&&b.dataset.m){MP=0;vMois()}};
   $('cp').onclick=()=>copy(txtBilan(r,BD));if($('nvok'))$('nvok').onclick=()=>askPin(()=>sheetPrix(true),true);
   if($('clo'))$('clo').onclick=()=>sheetCloture(BD);
-  if(isDir()){$('imp').onclick=importFile;$('pubok').onclick=()=>{DIR.pub[BD]=num($('pub').value);saveDir();toast('Pub enregistrée');vBilan()};$('cpd').onclick=()=>copy(txtDir(r,BD))}
+  if(isDir()){$('imp').onclick=importFile;$('col').onclick=sheetColler;$('pubok').onclick=()=>{DIR.pub[BD]=num($('pub').value);saveDir();toast('Pub enregistrée');vBilan()};$('cpd').onclick=()=>copy(txtDir(r,BD))}
   else{
-    $('send').onclick=sendLink;
+    $('send').onclick=()=>sendLink(false,BD);$('sendAll').onclick=()=>sendLink(true);
     if($('dl2'))$('dl2').onclick=e=>{const b=e.target.closest('.x');if(!b)return;askPin(()=>{const o=getDay(BD),x=(o.dons||[]).find(y=>y.id===b.dataset.id);if(!x)return;
       if(!confirm(`Annuler le don de ${x.qte} ${x.modele} à ${x.benef} ? Le stock sera remis.`))return;
       o.dons=o.dons.filter(y=>y.id!==x.id);putDay(BD,o);moveStock(x.modele,x.taille,x.qte);
@@ -1052,7 +1062,7 @@ function sheetCloture(d){
     const raison=ecart===0?'':($('rs').value||'').trim();
     if(ecart!==0&&!raison)return toast('Expliquez le '+(ecart<0?'manquant':'surplus'),1);
     const o=getDay(d);(o.clotures=o.clotures||[]).push({ts:Date.now(),heure:new Date().toTimeString().slice(0,5),attendu:r.attendu,compte,ecart,raison,par,om:r.om,moov:r.moov,wave:r.wave});
-    putDay(d,o);closeModal();toast(ecart===0?'Clôture faite : caisse juste ✓':'Clôture faite avec '+(ecart<0?'manquant':'surplus'),ecart<0);vBilan();
+    putDay(d,o);closeModal();S.set('aEnvoyer',d);if(ecart===0)setTimeout(sheetEnvoi,500);toast(ecart===0?'Clôture faite : caisse juste ✓':'Clôture faite avec '+(ecart<0?'manquant':'surplus'),ecart<0);vBilan();
     if(ecart!==0&&CFG.alerte){const m=`⚠️ ROYAUM' DES CHAUSSURES - ${longDate(d)}\n${ecart<0?'MANQUANT':'SURPLUS'} de ${fmt(Math.abs(ecart))} à la clôture de ${new Date().toTimeString().slice(0,5)}.\nAttendu : ${fmt(r.attendu)} · Compté : ${fmt(compte)}\nExplication : ${raison}\nClôture faite par : ${par}`;
       setTimeout(()=>{alert("La caisse n'est pas juste : WhatsApp va s'ouvrir avec le message pour le Directeur. Touchez ENVOYER.");location.href='https://wa.me/'+CFG.alerte+'?text='+encodeURIComponent(m)},600)}
   };
@@ -1083,25 +1093,76 @@ function b64u(buf){const b=new Uint8Array(buf);let s='';for(let i=0;i<b.length;i
 function unb64u(t){t=t.replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';const s=atob(t),b=new Uint8Array(s.length);for(let i=0;i<s.length;i++)b[i]=s.charCodeAt(i);return b}
 async function pack(o){const st=new Blob([JSON.stringify(o)]).stream().pipeThrough(new CompressionStream('deflate-raw'));return b64u(await new Response(st).arrayBuffer())}
 async function unpack(t){const st=new Blob([unb64u(t)]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return JSON.parse(await new Response(st).text())}
-async function sendLink(){
+/* ================= ENVOI AU DIRECTEUR, EN LIENS COURTS =================
+   WhatsApp ne rend cliquable qu'un lien de ~4 000 caractères : chaque lien fait au plus LIM caractères.
+   S'il y a beaucoup de ventes, l'envoi est découpé en plusieurs liens (1/3, 2/3…) dans UN seul message.
+   Chaque lien est complet par lui-même : l'ordre n'a pas d'importance et rien n'est jamais écrasé à tort. */
+const LIM=2800,NUMK=['total','qte','prixVendu','prixNormal','om','moov','wave','especes','frais','retro','avPot','lotRem','recuNo'];
+const slim=v=>{const o={};for(const[k,x]of Object.entries(v))if(x!==null&&x!==false&&x!==''&&x!==undefined&&!(x===0&&!NUMK.includes(k)))o[k]=x;return o};
+const fat=v=>{NUMK.forEach(k=>{if(v[k]==null)v[k]=0});return v};
+const dayHash=o=>hash(JSON.stringify(o));
+function daysToSend(all){const sent=S.get('envoiDir',{}),lim=new Date();lim.setDate(lim.getDate()-(all?13:1));const L=lim.toLocaleDateString('fr-CA');
+  return S.keys('jour:').map(k=>k.slice(5)).filter(d=>d>=L||(d>=(()=>{const x=new Date();x.setDate(x.getDate()-30);return x.toLocaleDateString('fr-CA')})()&&sent[d]!==dayHash(getDay(d)))).sort()}
+async function buildParts(days,withCat){
+  const id=Date.now().toString(36),base=()=>({app:'rdc',v:2,id,cree:new Date().toISOString(),cfg:{vendeuses:CFG.vendeuses,categories:CFG.categories,seuil:CFG.seuil,envoiClient:CFG.envoiClient,envoiCout:CFG.envoiCout,alerte:CFG.alerte,chaine:CFG.chaine,telB:CFG.telB},j:{}});
+  const meta={};days.forEach(d=>{const o=getDay(d),{ventes,...m}=o;meta[d]={...m,ids:(ventes||[]).map(v=>v.id)}});
+  const units=[];days.forEach(d=>{units.push({d});(getDay(d).ventes||[]).forEach(v=>units.push({d,v:slim(v)}))});
+  const mk=(us,cat)=>{const b=base();if(cat)b.cat=CAT;us.forEach(u=>{const x=b.j[u.d]||(b.j[u.d]={...meta[u.d],ventes:[]});if(u.v)x.ventes.push(u.v)});return b};
+  const parts=[];let cur=[],first=!!withCat;
+  for(const u of units){cur.push(u);const t=await pack(mk(cur,first));
+    if(t.length>LIM&&cur.length>1){cur.pop();parts.push(await pack(mk(cur,first)));first=false;cur=[u]}}
+  if(cur.length||first)parts.push(await pack(mk(cur,first)));
+  /* numéroter les parties */
+  const out=[];for(let k=0;k<parts.length;k++){const b=await unpack(parts[k]);b.k=k+1;b.n=parts.length;out.push(await pack(b))}
+  return out}
+async function sendLink(all,jour){
   try{
-    const lim=new Date();lim.setDate(lim.getDate()-13);const L=lim.toLocaleDateString('fr-CA');
-    const b=bundle();Object.keys(b.jours).forEach(d=>{if(d<L)delete b.jours[d]});b.part=1;
-    const url=location.origin+location.pathname.replace(/[^/]*$/,'')+'index.html#d='+await pack(b);
-    const now=new Date();
-    const txt=`Données Royaum' des Comptes du ${now.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} à ${now.toTimeString().slice(0,5)}.\nDirecteur : touchez le lien pour mettre à jour votre application.\n${url}`;
-    if(navigator.share){try{await navigator.share({text:txt});return}catch(e){if(e.name==='AbortError')return}}
-    copy(txt);
+    const days=daysToSend(all);[today(),jour].forEach(d=>{if(d&&!days.includes(d))days.push(d)});
+    const catH=hash(JSON.stringify(CAT)),withCat=all||S.get('envoiCat',null)!==catH;
+    const parts=await buildParts(days.sort(),withCat);
+    const base=location.origin+location.pathname.replace(/[^/]*$/,'')+'index.html#d=';
+    const now=new Date(),n=parts.length;
+    let txt=`Données Royaum' des Comptes du ${now.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} à ${now.toTimeString().slice(0,5)}.\n`;
+    txt+=n>1?`Directeur : touchez les ${n} liens, l'un après l'autre (ou copiez tout le message et collez-le dans l'appli).\n`:`Directeur : touchez le lien pour mettre à jour votre application.\n`;
+    parts.forEach((p,k)=>{txt+=`\n${n>1?'Lien '+(k+1)+'/'+n+' :\n':''}${base+p}\n`});
+    let ok=false;
+    if(navigator.share){try{await navigator.share({text:txt});ok=true}catch(e){if(e.name==='AbortError')return}}
+    if(!ok)copy(txt);
+    const sent=S.get('envoiDir',{});days.forEach(d=>sent[d]=dayHash(getDay(d)));S.set('envoiDir',sent);S.set('envoiCat',catH);
+    S.set('aEnvoyer',null);S.set('envoyeLe',today());
   }catch(e){toast('Envoi impossible : utilisez la sauvegarde dans ⚙',1)}
 }
-async function linkImport(raw){
+/* Réception chez le Directeur : fusion jour par jour, sans rien perdre */
+function mergeIn(b){
+  if(b.v!==2){Object.entries(b.jours).forEach(([d,o])=>S.set('jour:'+d,o));if(b.cat){CAT=b.cat;saveCat();applyMods()}return}
+  Object.entries(b.j).forEach(([d,x])=>{const{ids,ventes,...m}=x,old=getDay(d),ids2=new Set(ids),inc=new Map(ventes.map(v=>[v.id,fat(v)]));
+    const keep=(old.ventes||[]).filter(v=>ids2.has(v.id)&&!inc.has(v.id));
+    putDay(d,{...m,ventes:keep.concat([...inc.values()]).sort((a,c)=>(a.ts||0)-(c.ts||0))})});
+  if(b.cat){CAT=b.cat;saveCat();applyMods()}
+}
+async function linkImport(raw,quiet){
   try{const b=await unpack(raw);
-    if(b.app!=='rdc'||!b.jours)throw 0;
-    Object.entries(b.jours).forEach(([d,o])=>S.set('jour:'+d,o));
-    if(b.cat){CAT=b.cat;saveCat();applyMods()}if(b.cfg){Object.assign(CFG,b.cfg);saveCfg()}
+    if(b.app!=='rdc'||!(b.jours||b.j))throw 0;
+    mergeIn(b);if(b.cfg){Object.assign(CFG,b.cfg);saveCfg()}
+    const R=S.get('recus',{});if(b.id){(R[b.id]=R[b.id]||{n:b.n,k:[]});if(!R[b.id].k.includes(b.k))R[b.id].k.push(b.k);
+      Object.keys(R).sort().slice(0,-10).forEach(k=>delete R[k]);S.set('recus',R)}
     DIR.recu=new Date(b.cree).toLocaleString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});saveDir();
-    BD=today();go('bilan');toast('Données de la boutique reçues ✓');
-  }catch(e){toast('Lien illisible',1)}
+    if(quiet)return b;
+    const miss=b.id&&b.n>1?b.n-R[b.id].k.length:0;
+    BD=today();go('bilan');toast(miss?`Lien ${b.k}/${b.n} reçu ✓ · touchez aussi ${miss>1?'les '+miss+' autres liens':"l'autre lien"}`:'Données de la boutique reçues ✓');return b;
+  }catch(e){if(quiet)throw e;toast('Lien illisible : copiez tout le message et collez-le dans « Coller le message de la boutique »',1)}
+}
+/* Coller tout le message WhatsApp : tous les liens sont lus d'un coup */
+function sheetColler(){
+  sheet(`<h2 style="margin-top:0">Coller le message de la boutique</h2>
+  <p class="note">Dans WhatsApp : appui long sur le message de la boutique, puis Copier. Collez-le ici.</p>
+  <textarea id="cm" rows="6" style="width:100%" placeholder="Collez ici le message"></textarea>
+  <button class="btn gold" id="cok">Lire les données</button><button class="btn ghost" id="cno">Annuler</button>`);
+  $('cno').onclick=closeModal;
+  $('cok').onclick=async()=>{const L=[...($('cm').value||'').matchAll(/#d=([A-Za-z0-9_-]+)/g)].map(m=>m[1]);
+    if(!L.length)return toast('Aucun lien trouvé dans ce message',1);let ok=0,ko=0;
+    for(const r of L){try{await linkImport(r,true);ok++}catch(e){ko++}}
+    closeModal();BD=today();go('bilan');toast(ko?`${ok} lien(s) lu(s), ${ko} illisible(s)`:`Données de la boutique reçues ✓ (${ok} lien${ok>1?'s':''})`,!!ko)};
 }
 
 /* ---- Bilan du mois (du 15 au 14) ---- */
