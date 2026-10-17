@@ -138,6 +138,13 @@ function toast(t,err){const e=$('toast');e.textContent=t;e.className='toast on'+
 
 let CFG=Object.assign({},DEFAULT_CFG,S.get('cfg',{}));
 let CAT=S.get('cat',null)||DEFAULT_CAT.map(x=>({...x}));
+/* Nettoyage (oct. 2026) : « Clarks » et « Clarks plus » étaient des doublons de « Clark » → un seul modèle « Clark » */
+(()=>{const nz=x=>String(x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+  const isC=m=>/^clarks?( plus)?$/.test(nz(m.n));if(!CAT.some(isC))return;
+  let keep=CAT.find(m=>m.n==='Clark')||CAT.find(isC);keep.n='Clark';
+  CAT.filter(m=>m!==keep&&isC(m)).forEach(m=>{if(typeof m.stock==='number')keep.stock=(typeof keep.stock==='number'?keep.stock:0)+m.stock;
+    if(!keep.p&&m.p)keep.p=m.p});
+  CAT=CAT.filter(m=>m===keep||!isC(m));if(keep.aValider&&keep.p)delete keep.aValider;S.set('cat',CAT)})();
 const saveCfg=()=>S.set('cfg',CFG), saveCat=()=>S.set('cat',CAT);
 const getDay=d=>S.get('jour:'+d,{ventes:[],depenses:[]}), putDay=(d,o)=>S.set('jour:'+d,o);
 let DIR=S.get('dir',{pa:{},pub:{},recu:null});DIR.prixMod=DIR.prixMod||{};const saveDir=()=>S.set('dir',DIR);
@@ -989,14 +996,14 @@ function vBilan(){
   <div id="vl">${r.V.length?r.V.map((v,i)=>`<div class="row"><div class="l"><b>${i+1}. ${esc(v.modele)}${v.taille?' ('+esc(v.taille)+')':''}${v.qte>1?' ×'+v.qte:''}</b><span>${v.heure} · ${payLab(v)} · ${LAB[v.canal]}${v.frais?' +'+fmt(v.frais):''} · ${esc(v.vendeuse)}${v.recuNo?' · reçu '+recuNo(v.recuNo):''}${v.av?' · '+({vip:'👑 ',fid:'⭐ ',ami:'🤝 '}[v.av.lvl]||'🎁 ')+(v.av.mode==='remise'?'fidélité −'+fmt(v.av.remise):'cadeau '+esc(v.av.cadeau)+(v.av.n>1?' ×'+v.av.n:''))+(v.av.bonNo?' (bon '+recuNo(v.av.bonNo)+')':''):''}${v.retro?' · remise autre paire −'+fmt(v.retro):''}${v.force?' · prix changé par le Directeur':''}${v.fam?' · 👨‍👩‍👧 prix '+esc(v.fam.rel)+' ('+esc(v.fam.nom)+')':''}${v.liv?' · 📦 bon de livraison':''}${v.aValider?' <span class="rtag r">prix à valider</span>':''} ${recuTag(v)}</span></div><div class="p">${fmt(v.total)}${v.prixVendu<v.prixNormal?`<s>${fmt(v.prixNormal*v.qte)}</s>`:''}</div>${isDir()?'':`<button class="x" data-id="${v.id}">×</button>`}</div>`).join(''):'<div class="empty">Aucune vente ce jour-là.</div>'}</div>
   <h2>Par vendeuse</h2>
   ${Object.keys(r.ven).length?Object.entries(r.ven).sort((a,b)=>b[1].ca-a[1].ca).map(([n,x])=>`<div class="row"><div class="l"><b>${esc(n)}</b><span>${x.n} article${x.n>1?'s':''}</span></div><div class="p">${fmt(x.ca)}</div></div>`).join(''):'<div class="empty">—</div>'}
-  ${isDir()?'':'<button class="btn gold" id="send">'+(BD===today()?'Envoyer les données au Directeur':'Envoyer le bilan du '+shortDate(BD)+' au Directeur')+'</button><button class="link" id="sendAll" style="display:block;margin:8px auto">Tout renvoyer (14 derniers jours)</button>'}`;
+  ${isDir()?'':'<button class="btn gold" id="send">'+(BD===today()?'Envoyer les données au Directeur':'Envoyer le bilan du '+shortDate(BD)+' au Directeur')+'</button><button class="link" id="sendAll" style="display:block;margin:8px auto">Tout renvoyer en fichier (tous les jours)</button>'}`;
   $('bd').onchange=()=>{BD=$('bd').value||today();vBilan()};
   $('bv').onclick=e=>{const b=e.target.closest('button');if(b&&b.dataset.m){MP=0;vMois()}};
   $('cp').onclick=()=>copy(txtBilan(r,BD));if($('nvok'))$('nvok').onclick=()=>askPin(()=>sheetPrix(true),true);
   if($('clo'))$('clo').onclick=()=>sheetCloture(BD);
   if(isDir()){$('imp').onclick=importFile;$('col').onclick=sheetColler;$('pubok').onclick=()=>{DIR.pub[BD]=num($('pub').value);saveDir();toast('Pub enregistrée');vBilan()};$('cpd').onclick=()=>copy(txtDir(r,BD))}
   else{
-    $('send').onclick=()=>sendLink(false,BD);$('sendAll').onclick=()=>sendLink(true);
+    $('send').onclick=()=>sendLink(false,BD);$('sendAll').onclick=exportFile;
     if($('dl2'))$('dl2').onclick=e=>{const b=e.target.closest('.x');if(!b)return;askPin(()=>{const o=getDay(BD),x=(o.dons||[]).find(y=>y.id===b.dataset.id);if(!x)return;
       if(!confirm(`Annuler le don de ${x.qte} ${x.modele} à ${x.benef} ? Le stock sera remis.`))return;
       o.dons=o.dons.filter(y=>y.id!==x.id);putDay(BD,o);moveStock(x.modele,x.taille,x.qte);
@@ -1097,11 +1104,11 @@ async function unpack(t){const st=new Blob([unb64u(t)]).stream().pipeThrough(new
    WhatsApp ne rend cliquable qu'un lien de ~4 000 caractères : chaque lien fait au plus LIM caractères.
    S'il y a beaucoup de ventes, l'envoi est découpé en plusieurs liens (1/3, 2/3…) dans UN seul message.
    Chaque lien est complet par lui-même : l'ordre n'a pas d'importance et rien n'est jamais écrasé à tort. */
-const LIM=2800,NUMK=['total','qte','prixVendu','prixNormal','om','moov','wave','especes','frais','retro','avPot','lotRem','recuNo'];
+const LIM=3000,NUMK=['total','qte','prixVendu','prixNormal','om','moov','wave','especes','frais','retro','avPot','lotRem','recuNo'];
 const slim=v=>{const o={};for(const[k,x]of Object.entries(v))if(x!==null&&x!==false&&x!==''&&x!==undefined&&!(x===0&&!NUMK.includes(k)))o[k]=x;return o};
 const fat=v=>{NUMK.forEach(k=>{if(v[k]==null)v[k]=0});return v};
 const dayHash=o=>hash(JSON.stringify(o));
-function daysToSend(all){const sent=S.get('envoiDir',{}),lim=new Date();lim.setDate(lim.getDate()-(all?13:1));const L=lim.toLocaleDateString('fr-CA');
+function daysToSend(all){const sent=S.get('envoiDir',{}),lim=new Date();lim.setDate(lim.getDate()-(all?13:0));const L=lim.toLocaleDateString('fr-CA');
   return S.keys('jour:').map(k=>k.slice(5)).filter(d=>d>=L||(d>=(()=>{const x=new Date();x.setDate(x.getDate()-30);return x.toLocaleDateString('fr-CA')})()&&sent[d]!==dayHash(getDay(d)))).sort()}
 async function buildParts(days,withCat){
   const id=Date.now().toString(36),base=()=>({app:'rdc',v:2,id,cree:new Date().toISOString(),cfg:{vendeuses:CFG.vendeuses,categories:CFG.categories,seuil:CFG.seuil,envoiClient:CFG.envoiClient,envoiCout:CFG.envoiCout,alerte:CFG.alerte,chaine:CFG.chaine,telB:CFG.telB},j:{}});
@@ -1120,16 +1127,23 @@ async function sendLink(all,jour){
     const days=daysToSend(all);[today(),jour].forEach(d=>{if(d&&!days.includes(d))days.push(d)});
     const catH=hash(JSON.stringify(CAT)),withCat=all||S.get('envoiCat',null)!==catH;
     const parts=await buildParts(days.sort(),withCat);
+    /* contrôle : chaque lien doit se relire parfaitement et rester court, sinon on passe au fichier */
+    for(const p of parts){let ok=p.length<=3400;if(ok){try{const b=await unpack(p);ok=b&&b.app==='rdc'}catch(e){ok=false}}
+      if(!ok){toast('Envoi par fichier (plus sûr)');return exportFile()}}
     const base=location.origin+location.pathname.replace(/[^/]*$/,'')+'index.html#d=';
-    const now=new Date(),n=parts.length;
-    let txt=`Données Royaum' des Comptes du ${now.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} à ${now.toTimeString().slice(0,5)}.\n`;
-    txt+=n>1?`Directeur : touchez les ${n} liens, l'un après l'autre (ou copiez tout le message et collez-le dans l'appli).\n`:`Directeur : touchez le lien pour mettre à jour votre application.\n`;
-    parts.forEach((p,k)=>{txt+=`\n${n>1?'Lien '+(k+1)+'/'+n+' :\n':''}${base+p}\n`});
-    let ok=false;
-    if(navigator.share){try{await navigator.share({text:txt});ok=true}catch(e){if(e.name==='AbortError')return}}
-    if(!ok)copy(txt);
-    const sent=S.get('envoiDir',{});days.forEach(d=>sent[d]=dayHash(getDay(d)));S.set('envoiDir',sent);S.set('envoiCat',catH);
-    S.set('aEnvoyer',null);S.set('envoyeLe',today());
+    const now=new Date(),n=parts.length,quand=`${now.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} à ${now.toTimeString().slice(0,5)}`;
+    const msg=k=>`Données Royaum' des Comptes du ${quand}${n>1?` · lien ${k+1}/${n}`:''}. Directeur : touchez le lien.\n${base+parts[k]}`;
+    const fini=()=>{const sent=S.get('envoiDir',{});days.forEach(d=>sent[d]=dayHash(getDay(d)));S.set('envoiDir',sent);S.set('envoiCat',catH);S.set('aEnvoyer',null);S.set('envoyeLe',today())};
+    const share=async k=>{if(navigator.share){try{await navigator.share({text:msg(k)});return true}catch(e){return false}}copy(msg(k));return true};
+    if(n===1){if(await share(0))fini();return}
+    /* plusieurs liens : un bouton par lien, chacun part dans son propre message */
+    const done=new Set();
+    sheet(`<h2 style="margin-top:0">Envoyer au Directeur : ${n} liens</h2><p class="note">Beaucoup de ventes : WhatsApp n'accepte pas tout dans un seul message. Touchez chaque bouton l'un après l'autre et envoyez chaque lien au Directeur.</p>
+    <div id="lks">${parts.map((p,k)=>`<button class="btn gold" data-k="${k}">📤 Envoyer le lien ${k+1}/${n}</button>`).join('')}</div><button class="btn ghost" id="lkx">Fermer</button>`,1);
+    $('lkx').onclick=closeModal;
+    $('lks').onclick=async e=>{const b=e.target.closest('[data-k]');if(!b)return;const k=+b.dataset.k;
+      if(await share(k)){done.add(k);b.className='btn ghost';b.textContent=`✓ Lien ${k+1}/${n} envoyé (renvoyer)`;
+        if(done.size===n){fini();toast('Tous les liens sont envoyés ✓')}}};
   }catch(e){toast('Envoi impossible : utilisez la sauvegarde dans ⚙',1)}
 }
 /* Réception chez le Directeur : fusion jour par jour, sans rien perdre */
@@ -1152,15 +1166,47 @@ async function linkImport(raw,quiet){
     BD=today();go('bilan');toast(miss?`Lien ${b.k}/${b.n} reçu ✓ · touchez aussi ${miss>1?'les '+miss+' autres liens':"l'autre lien"}`:'Données de la boutique reçues ✓');return b;
   }catch(e){if(quiet)throw e;toast('Lien illisible : copiez tout le message et collez-le dans « Coller le message de la boutique »',1)}
 }
+/* Secours : relire le BILAN TEXTE copié par la boutique (« *BILAN ROYAUM' DES CHAUSSURES* … ») */
+function bilanTexte(txt){
+  const L=txt.replace(/\r/g,'').split('\n').map(x=>x.trim()),N=x=>+String(x||'').replace(/[^\d]/g,'')||0;
+  const MO={janvier:1,fevrier:2,'février':2,mars:3,avril:4,mai:5,juin:6,juillet:7,aout:8,'août':8,septembre:9,octobre:10,novembre:11,decembre:12,'décembre':12};
+  const dm=txt.match(/(\d{1,2})\s+(janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[ée]cembre)\s+(20\d\d)/i);if(!dm)return null;
+  const d=`${dm[3]}-${String(MO[dm[2].toLowerCase()]).padStart(2,'0')}-${String(+dm[1]).padStart(2,'0')}`;
+  const ventes=[],depenses=[];let sec='',clo=null;
+  L.forEach((l,i)=>{
+    if(/^\*D[ée]tail des ventes\*/.test(l)){sec='v';return}if(/^\*D[ée]penses\*/.test(l)){sec='d';return}if(/^\*/.test(l)){sec='';return}
+    const c=l.match(/^Esp[eè]ces compt[ée]es\s*:\s*([\d\s]+)F\s*→\s*(caisse juste|MANQUANT|SURPLUS)\s*([\d\s]*F)?\s*(?:\((.*?)\))?.*cl[ôo]ture\s+(\d{1,2}:\d{2})\s+par\s+(.+)$/i);
+    if(c){const compte=N(c[1]),e=c[2].toLowerCase()==='caisse juste'?0:(c[2].toUpperCase()==='MANQUANT'?-N(c[3]):N(c[3]));clo={ts:new Date(d+'T'+c[5]).getTime(),heure:c[5],attendu:compte-e,compte,ecart:e,raison:c[4]||'',par:c[6]};return}
+    if(sec==='v'&&/^\d+\.\s/.test(l)){const P=l.split(' - ');if(P.length<5)return;
+      const heure=P.pop(),vend=P.pop(),can=P.pop(),pay=P.pop(),first=P.join(' - ');
+      const m=first.match(/^\d+\.\s+(.*?)\s*:\s*([\d\s]+)F(.*)$/);if(!m)return;
+      const nm=m[1].match(/^(.*?)(?:\s+\(([^)]*)\))?(?:\s+x(\d+))?$/),qte=+(nm[3]||1),total=N(m[2]),nr=m[3].match(/\(normal\s+([\d\s]+)F\)/);
+      const frais=/\+/.test(can)?N(can.split('+')[1]):0,canal=/envoi/i.test(can)?'envoi':/livraison/i.test(can)?'livraison':'boutique';
+      const v={id:'bt'+d.replace(/-/g,'')+'-'+i,ts:new Date(d+'T'+(heure.match(/\d{1,2}:\d{2}/)||['12:00'])[0]).getTime(),heure,modele:nm[1].trim(),taille:nm[2]||null,qte,total,frais,
+        prixVendu:Math.round(total/qte),prixNormal:nr?Math.round(N(nr[1])/qte):Math.round(total/qte),om:0,moov:0,wave:0,especes:0,canal,vendeuse:vend,paiement:'especes'};
+      const enc=total+frais,parts=pay.split('+').map(x=>x.trim());
+      if(parts.length>1){v.paiement='multi';v.mixte=true;parts.forEach(x=>{const a=N(x);if(/orange|om/i.test(x))v.om+=a;else if(/moov/i.test(x))v.moov+=a;else if(/wave/i.test(x))v.wave+=a;else v.especes+=a})}
+      else if(/orange|\bom\b/i.test(pay)){v.om=enc;v.paiement='om'}else if(/moov/i.test(pay)){v.moov=enc;v.paiement='moov'}else if(/wave/i.test(pay)){v.wave=enc;v.paiement='wave'}else v.especes=enc;
+      const cm=CAT.find(x=>norm(x.n)===norm(v.modele));if(cm&&isAcc(cm))v.acc=1;
+      ventes.push(v);return}
+    if(sec==='d'&&/^-\s/.test(l)){const k=l.lastIndexOf(' : ');if(k<0)return;const lab=l.slice(2,k),mt=N(l.slice(k+3)),mm=lab.match(/^(.*?)\s*\((.*)\)$/);
+      depenses.push({id:'bd'+d.replace(/-/g,'')+'-'+i,ts:new Date(d+'T12:00').getTime(),heure:'',cat:mm?mm[1]:lab,motif:mm?mm[2]:'',montant:mt})}
+  });
+  if(!ventes.length&&!depenses.length)return null;
+  return{d,o:{ventes,depenses,clotures:clo?[clo]:[],source:'texte'}}
+}
 /* Coller tout le message WhatsApp : tous les liens sont lus d'un coup */
 function sheetColler(){
   sheet(`<h2 style="margin-top:0">Coller le message de la boutique</h2>
-  <p class="note">Dans WhatsApp : appui long sur le message de la boutique, puis Copier. Collez-le ici.</p>
+  <p class="note">Dans WhatsApp : appui long sur le message de la boutique (un lien OU le bilan texte « *BILAN ROYAUM' DES CHAUSSURES* »), puis Copier. Collez-le ici.</p>
   <textarea id="cm" rows="6" style="width:100%" placeholder="Collez ici le message"></textarea>
   <button class="btn gold" id="cok">Lire les données</button><button class="btn ghost" id="cno">Annuler</button>`);
   $('cno').onclick=closeModal;
   $('cok').onclick=async()=>{const L=[...($('cm').value||'').matchAll(/#d=([A-Za-z0-9_-]+)/g)].map(m=>m[1]);
-    if(!L.length)return toast('Aucun lien trouvé dans ce message',1);let ok=0,ko=0;
+    if(!L.length){const B=bilanTexte($('cm').value||'');if(!B)return toast('Ni lien ni bilan reconnu dans ce message',1);
+      const old=getDay(B.d);if((old.ventes||[]).length&&old.source!=='texte'&&!confirm(`Le ${shortDate(B.d)} existe déjà (${old.ventes.length} ventes). Remplacer par ce bilan texte ?`))return;
+      putDay(B.d,B.o);closeModal();BD=B.d;go('bilan');toast(`Bilan du ${shortDate(B.d)} lu ✓ (${B.o.ventes.length} ventes)`);return}
+    let ok=0,ko=0;
     for(const r of L){try{await linkImport(r,true);ok++}catch(e){ko++}}
     closeModal();BD=today();go('bilan');toast(ko?`${ok} lien(s) lu(s), ${ko} illisible(s)`:`Données de la boutique reçues ✓ (${ok} lien${ok>1?'s':''})`,!!ko)};
 }
